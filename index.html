@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CodeFactory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect x=%222%22 y=%2212%22 width=%2220%22 height=%2216%22 rx=%224%22 fill=%22%23ff8fb3%22/%3E%3Crect x=%2210%22 y=%224%22 width=%2220%22 height=%2216%22 rx=%224%22 fill=%22%238fb4f0%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Nunito:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -61,7 +62,8 @@ button{cursor:pointer}
 .stage{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
 .stage-card{position:relative;flex:1;min-height:320px;border-radius:22px;overflow:hidden;
   background:linear-gradient(180deg,#e3e7fb 0%,#f3eefc 100%);box-shadow:0 1px 0 #fff inset,0 10px 30px -18px #6c70a0}
-#scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene,#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene{pointer-events:none}
 .hud{position:absolute;left:14px;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
 .pill{background:rgba(255,255,255,.82);backdrop-filter:blur(6px);border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;
   box-shadow:0 2px 10px -6px #6c70a0}
@@ -200,13 +202,15 @@ button{cursor:pointer}
       <div><h1>Code<b>Factory</b></h1><p>Роботтар фабрикасы</p></div>
     </div>
     <nav class="levels" id="levelNav" aria-label="Деңгейлер"></nav>
+    <button class="sound" id="gfxBtn" title="Әлсіз компьютерде 2D режимін таңда">Графика: 3D</button>
     <button class="sound" id="soundBtn" aria-pressed="true">Дыбыс: қосулы</button>
   </header>
 
   <main class="layout">
     <section class="stage">
       <div class="stage-card">
-        <canvas id="scene" aria-label="Фабрика алаңы: робот бағдарлама бойынша қозғалады"></canvas>
+        <canvas id="gl" aria-label="Фабрика алаңы: робот бағдарлама бойынша қозғалады"></canvas>
+        <canvas id="scene" aria-hidden="true"></canvas>
         <div class="hud">
           <span class="pill topic" id="hudTopic"></span>
           <span class="pill" id="hudState"><span class="dot"></span><span id="hudStateText">Дайын</span></span>
@@ -277,6 +281,8 @@ button{cursor:pointer}
   </main>
 </div>
 
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
+<script type="module" src="./js/scene3d.js"></script>
 <script>
 'use strict';
 const $ = (s) => document.querySelector(s);
@@ -1113,7 +1119,8 @@ function layout() {
   OY = topPad + (CH - topPad - total) / 2 + WALL * HU;
 }
 new ResizeObserver(resize).observe(cv);
-const P = (x, y, z = 0) => [OX + (x - y) * TW / 2, OY + (x + y) * TH / 2 - z * HU];
+const P2 = (x, y, z = 0) => [OX + (x - y) * TW / 2, OY + (x + y) * TH / 2 - z * HU];
+let P = P2;
 
 const shadeCache = new Map();
 function shade(hex, a) {
@@ -1439,6 +1446,10 @@ function draw(now) {
   for (const m of world.minis) list.push({ k: m.x + m.y + 1.03, f: () => drawRobot(m, 0.6, m.color, m.alpha, now) });
   list.sort((a, b) => a.k - b.k).forEach((d) => d.f());
   for (const fl of world.flying) drawItem(fl.item, fl.x, fl.y, fl.z);
+  drawFx(now);
+}
+function drawFx(now) {
+  const r = world.robot;
   // particles
   for (const p of world.particles) { const [x, y] = P(p.x, p.y, p.z); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill(); }
   ctx.globalAlpha = 1;
@@ -1478,10 +1489,35 @@ let lastT = performance.now();
 function frame(now) {
   const dt = Math.min(50, now - lastT); lastT = now;
   stepTweens(dt);
-  if (world) { update(dt); try { draw(now); } catch (e) { console.error(e); } }
+  if (world) {
+    update(dt);
+    try {
+      if (use3D()) { P = window.GL3D.project; TW = window.GL3D.render(now) || TW; drawOverlay(now); }
+      else { P = P2; draw(now); }
+    } catch (e) { console.error(e); }
+  }
   hudTick();
   requestAnimationFrame(frame);
 }
+function use3D() { return !!window.GL3D && save.gfx !== '2d'; }
+function drawOverlay(now) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, CW, CH);
+  for (const s of world.stations) {
+    if (s.type === 'bin') label(s.x + 0.5, s.y + 0.5, 1.0, String(s.items.length), s.accept ? COL[s.accept].base : '#c6d3f6', s.accept ? `"${s.accept}"` : null);
+    else if (s.type === 'shelf') label(s.x + 0.5, s.y + 0.5, 1.05, PART_KK[s.part], '#d6c9f4');
+    else if (s.type === 'machine') label(s.x + 0.5, s.y + 0.5, 1.95, world.conv.hidden ? '?' : String(world.conv.queue.length), '#cdbaf3', 'қалды');
+  }
+  drawFx(now);
+}
+function syncGfx() {
+  const on = use3D();
+  $('#gl').hidden = !on;
+  $('#gfxBtn').textContent = 'Графика: ' + (on ? '3D' : '2D');
+  $('#gfxBtn').hidden = !window.GL3D;
+}
+$('#gfxBtn').addEventListener('click', () => { save.gfx = use3D() ? '2d' : '3d'; persist(); syncGfx(); });
+window.addEventListener('gl3d-ready', syncGfx);
 function confetti() {
   const cols = ['#ff8fb3', '#62cdef', '#fbdc85', '#86d9b3', '#b9a3ef'];
   for (let i = 0; i < 90; i++) world.confetti.push({ x: CW / 2 + (Math.random() - 0.5) * 120, y: CH * 0.35, vx: (Math.random() - 0.5) * 520, vy: -200 - Math.random() * 320, a: Math.random() * 6, va: (Math.random() - 0.5) * 12, c: cols[i % cols.length] });
@@ -1900,6 +1936,7 @@ window.CodeFactory = { LEVELS, loadLevel, startRun, setSpeed: (s) => (SPEED = s)
 
 /* boot */
 syncSound();
+syncGfx();
 $('#speed').value = 1;
 loadLevel(Math.min(save.level || 0, LEVELS.length - 1));
 setMode(save.mode === 'blk' ? 'blk' : 'py');
