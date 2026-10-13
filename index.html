@@ -1,0 +1,1910 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CodeFactory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Nunito:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: two-pane workbench — the factory floor on the left, the code console on the right; stacks on phones.
+   One deliberate visual world: a pastel toy factory under neon light, so the page stays light on any host. */
+:root{
+  --bg:#eceffb; --bg-2:#f6f2ff; --panel:#ffffff; --ink:#2b2e57; --muted:#6c7099; --line:#dde1f3;
+  --pink:#ff8fb3; --cyan:#62cdef; --lav:#b9a3ef; --mint:#86d9b3; --butter:#f4cf72; --sky:#8fb4f0;
+  --code-bg:#272b52; --code-bg-2:#20244a; --code-ink:#e9ebff; --code-muted:#7f84b8; --code-line:#343964;
+  --err:#e2546f; --ok:#2e9f76;
+  --f-display:'Unbounded','Nunito',system-ui,sans-serif;
+  --f-body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-code:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+[hidden]{display:none!important}
+
+#app{height:100%;display:flex;flex-direction:column;padding-inline:16px;gap:12px;padding-block:12px}
+
+/* header */
+.top{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:42px;height:42px;flex:none;position:relative}
+.logo i{position:absolute;border-radius:5px}
+.logo i:nth-child(1){left:0;top:14px;width:26px;height:20px;background:var(--pink)}
+.logo i:nth-child(2){left:14px;top:4px;width:26px;height:20px;background:var(--sky);mix-blend-mode:multiply}
+.logo i:nth-child(3){left:20px;top:0;width:6px;height:5px;background:var(--sky);border-radius:2px 2px 0 0}
+.logo i:nth-child(4){left:30px;top:0;width:6px;height:5px;background:var(--sky);border-radius:2px 2px 0 0}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:21px;letter-spacing:-.01em;margin:0;line-height:1.1}
+.brand h1 b{color:var(--pink);font-weight:800}
+.brand p{margin:0;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.levels{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.lv{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:5px 10px 4px;min-width:62px;
+  display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.1;transition:transform .15s,border-color .15s}
+.lv:hover{transform:translateY(-2px);border-color:var(--lav)}
+.lv .n{font-family:var(--f-display);font-weight:700;font-size:15px}
+.lv .s{font-size:11px;letter-spacing:1px;color:#d5d8ec}
+.lv .s em{font-style:normal;color:var(--butter)}
+.lv[aria-current="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.lv[aria-current="true"] .s{color:#5d628f}
+.sound{border:2px solid var(--line);background:var(--panel);border-radius:12px;padding:7px 12px;font-weight:700;font-size:13px}
+.sound[aria-pressed="false"]{color:var(--muted)}
+
+/* main layout */
+.layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,1fr);gap:14px}
+.stage{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+.stage-card{position:relative;flex:1;min-height:320px;border-radius:22px;overflow:hidden;
+  background:linear-gradient(180deg,#e3e7fb 0%,#f3eefc 100%);box-shadow:0 1px 0 #fff inset,0 10px 30px -18px #6c70a0}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:14px;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.pill{background:rgba(255,255,255,.82);backdrop-filter:blur(6px);border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;
+  box-shadow:0 2px 10px -6px #6c70a0}
+.pill.topic{color:#7d5fd6}
+.pill .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mint);margin-right:6px;vertical-align:1px}
+.pill.running .dot{background:var(--pink);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+.result{position:absolute;inset:0;display:grid;place-items:center;background:rgba(236,239,251,.55);backdrop-filter:blur(3px)}
+.result-card{background:var(--panel);border-radius:22px;padding:24px 28px;text-align:center;max-width:min(380px,90%);
+  box-shadow:0 20px 50px -20px #5b5f99;animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+.result-card h3{font-family:var(--f-display);font-size:22px;margin:0 0 4px}
+.result-card p{margin:0 0 12px;color:var(--muted)}
+.big-stars{font-size:42px;letter-spacing:6px;color:#e4e6f3;margin:4px 0 8px}
+.big-stars span{display:inline-block}
+.big-stars .on{color:var(--butter);animation:starIn .5s cubic-bezier(.2,1.8,.4,1) both;text-shadow:0 3px 0 #e2b54f}
+.big-stars .on:nth-child(2){animation-delay:.15s}.big-stars .on:nth-child(3){animation-delay:.3s}
+@keyframes starIn{from{transform:scale(0) rotate(-90deg)}}
+.crit{list-style:none;padding:0;margin:0 0 16px;text-align:left;font-size:14px;display:grid;gap:4px}
+.crit li{display:flex;gap:8px;align-items:baseline}
+.crit li::before{content:"★";color:#d9dcef}
+.crit li.on::before{color:var(--butter)}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+/* brief */
+.brief{background:var(--panel);border-radius:var(--r);padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;
+  box-shadow:0 1px 0 var(--line)}
+.brief h2{font-family:var(--f-display);font-size:18px;margin:0;text-wrap:balance;font-weight:700}
+.brief h2 small{font-family:var(--f-body);font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:2px}
+.brief .story{grid-column:1/-1;margin:0;color:#41456f;max-width:75ch}
+.brief .goals{grid-column:1/-1;display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--muted)}
+.brief .goals span::before{content:"★ ";color:var(--butter)}
+.hint{grid-column:1/-1;background:#fff8e3;border-radius:10px;padding:10px 12px;margin:0;font-size:14px;color:#6a5521}
+.brief-actions{display:flex;gap:6px;align-items:start}
+
+.btn{border:0;border-radius:11px;padding:9px 14px;font-weight:800;font-size:14px;background:#eef0fa;color:var(--ink);
+  display:inline-flex;align-items:center;gap:7px;transition:transform .1s,background .15s;white-space:nowrap}
+.btn:hover{background:#e3e6f7}
+.btn:active{transform:translateY(1px)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#3a3e72}
+.btn.go{background:var(--pink);color:#3b1630;box-shadow:0 3px 0 #e06c94}
+.btn.go:hover{background:#ff9fbe}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn svg{width:14px;height:14px;fill:currentColor}
+
+/* coder */
+.coder{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
+.tabs{display:flex;gap:4px;background:#e1e4f6;padding:4px;border-radius:12px;align-self:flex-start}
+.tab{border:0;background:transparent;padding:7px 16px;border-radius:9px;font-weight:800;font-size:14px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 4px -2px #6c70a0}
+.pane{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* editor */
+.editor{flex:1;min-height:220px;display:flex;background:var(--code-bg);border-radius:var(--r);overflow:hidden;position:relative;
+  font-family:var(--f-code);font-size:14px;line-height:22px}
+.gutter{flex:none;width:42px;padding:12px 0;background:var(--code-bg-2);color:var(--code-muted);text-align:right;overflow:hidden;user-select:none}
+.gutter-in div{padding-right:10px;height:22px}
+.gutter-in div.cur{color:var(--pink);font-weight:600}
+.gutter-in div.bad{color:#fff;background:var(--err)}
+.code-wrap{position:relative;flex:1;min-width:0;overflow:hidden}
+.code-wrap pre,.code-wrap textarea{margin:0;padding:12px 14px;font:inherit;line-height:inherit;white-space:pre;tab-size:4;border:0;
+  position:absolute;inset:0;overflow:hidden;letter-spacing:0}
+.code-wrap pre{color:var(--code-ink);pointer-events:none}
+.code-wrap pre code{display:block;font:inherit}
+.code-wrap textarea{background:transparent;color:transparent;caret-color:#fff;resize:none;outline:none;overflow:auto;width:100%;height:100%}
+.code-wrap textarea::selection{background:rgba(255,143,179,.35)}
+.lnmark{position:absolute;left:0;right:0;height:22px;pointer-events:none;background:rgba(98,205,239,.14);box-shadow:inset 3px 0 0 var(--cyan);display:none}
+.lnmark.bad{background:rgba(226,84,111,.22);box-shadow:inset 3px 0 0 var(--err)}
+.t-kw{color:#ff9fc2;font-weight:600}.t-con{color:#ffb98a}.t-str{color:#a9e8c5}.t-num{color:#ffd58a}.t-com{color:var(--code-muted);font-style:italic}
+.t-fn{color:#8fd6ff;font-weight:600}.t-bi{color:#c9b6ff}
+
+/* blocks */
+.blocks{flex:1;min-height:260px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px}
+.palette{background:var(--panel);border-radius:var(--r);padding:8px;overflow:auto;display:flex;flex-direction:column;gap:5px}
+.palette h4{margin:6px 2px 0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.palette .pb{border:0;text-align:left;border-radius:9px;padding:6px 9px;font-weight:800;font-size:13px;cursor:grab;line-height:1.2}
+.workspace{background:#f8f9fe;border:2px dashed var(--line);border-radius:var(--r);padding:10px;overflow:auto;position:relative}
+.slot{min-height:34px;display:flex;flex-direction:column;gap:5px;border-radius:9px;padding:3px}
+.slot.active{background:rgba(98,205,239,.12);box-shadow:inset 0 0 0 2px rgba(98,205,239,.5)}
+.slot-hint{font-size:12px;color:#a2a6c7;font-weight:700;padding:4px 6px}
+.blk{border-radius:10px;font-weight:800;font-size:13.5px;box-shadow:0 2px 0 rgba(43,46,87,.18)}
+.blk-head{display:flex;align-items:center;gap:6px;padding:6px 8px;flex-wrap:wrap;cursor:grab}
+.blk-head input,.blk-head select{border:0;border-radius:6px;padding:2px 5px;font-weight:800;background:rgba(255,255,255,.75);font-size:13px}
+.blk-head input[type=number]{width:46px}
+.blk-head input[type=text]{width:90px;font-family:var(--f-code)}
+.blk .x{margin-left:auto;border:0;background:rgba(255,255,255,.5);border-radius:6px;width:22px;height:22px;line-height:1;font-weight:800;padding:0}
+.blk .x:hover{background:#fff}
+.blk .inner{margin:0 6px 6px 16px;background:rgba(255,255,255,.55);border-radius:8px}
+.blk .else-head{padding:2px 8px 4px;font-size:13px}
+.blk.running{outline:3px solid var(--ink);outline-offset:1px}
+.blk.dragging{opacity:.4}
+.cat-move{background:#a9c7f6}.cat-act{background:#f8b5c7}.cat-ctrl{background:#f7d98c}.cat-func{background:#cdbcf5}.cat-var{background:#a3e3c5}
+.drop-line{position:absolute;height:3px;background:var(--pink);border-radius:2px;pointer-events:none;display:none}
+.blk-foot{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.preview{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:var(--r);padding:10px 12px;font-family:var(--f-code);font-size:12.5px;
+  line-height:19px;max-height:150px;overflow:auto;white-space:pre}
+
+/* controls + console */
+.controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.speed{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:13px;font-weight:700;color:var(--muted)}
+.speed input{width:90px;accent-color:var(--pink)}
+.console{background:var(--panel);border-radius:var(--r);height:118px;overflow:auto;padding:8px 12px;font-family:var(--f-code);font-size:12.5px;line-height:1.55}
+.console div{white-space:pre-wrap;word-break:break-word}
+.c-info{color:var(--muted)}.c-out{color:var(--ink)}.c-err{color:var(--err);font-weight:600}.c-ok{color:var(--ok);font-weight:600}
+.ref{background:var(--panel);border-radius:var(--r);padding:8px 12px;font-size:13.5px}
+.ref summary{font-weight:800;cursor:pointer}
+.ref dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:8px 0 2px}
+.ref dt{font-family:var(--f-code);font-size:12.5px;color:#4a68b8;font-weight:600}
+.ref dd{margin:0;color:#41456f}
+
+@media (max-width:980px){
+  #app{height:auto;min-height:100%}
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .stage-card{flex:none;height:min(72vw,480px);min-height:280px}
+  .editor{min-height:300px}
+  .levels{margin-left:0}
+}
+@media (max-width:520px){
+  .blocks{grid-template-columns:minmax(0,1fr)}
+  .palette{flex-direction:row;flex-wrap:wrap;max-height:140px}
+  .palette h4{width:100%}
+  .brief{grid-template-columns:minmax(0,1fr)}
+  .speed{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div><h1>Code<b>Factory</b></h1><p>Роботтар фабрикасы</p></div>
+    </div>
+    <nav class="levels" id="levelNav" aria-label="Деңгейлер"></nav>
+    <button class="sound" id="soundBtn" aria-pressed="true">Дыбыс: қосулы</button>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div class="stage-card">
+        <canvas id="scene" aria-label="Фабрика алаңы: робот бағдарлама бойынша қозғалады"></canvas>
+        <div class="hud">
+          <span class="pill topic" id="hudTopic"></span>
+          <span class="pill" id="hudState"><span class="dot"></span><span id="hudStateText">Дайын</span></span>
+          <span class="pill" id="hudProgress"></span>
+        </div>
+        <div class="result" id="result" hidden>
+          <div class="result-card" role="dialog" aria-labelledby="resTitle">
+            <h3 id="resTitle">Деңгей өтілді!</h3>
+            <div class="big-stars" id="resStars"></div>
+            <ul class="crit" id="resCrit"></ul>
+            <div class="row">
+              <button class="btn" id="resAgain">Қайта ойнау</button>
+              <button class="btn go" id="resNext">Келесі деңгей →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="brief" id="brief">
+        <h2 id="lvTitle"></h2>
+        <div class="brief-actions">
+          <button class="btn small" id="hintBtn">Кеңес</button>
+        </div>
+        <p class="story" id="lvStory"></p>
+        <div class="goals" id="lvGoals"></div>
+        <p class="hint" id="lvHint" hidden></p>
+      </div>
+    </section>
+
+    <section class="coder">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabPy" aria-selected="true">Python</button>
+        <button class="tab" role="tab" id="tabBlk" aria-selected="false">Блоктар</button>
+      </div>
+
+      <div class="pane" id="pyPane">
+        <div class="editor">
+          <div class="gutter"><div class="gutter-in" id="gutter"></div></div>
+          <div class="code-wrap">
+            <div class="lnmark" id="lnmark"></div>
+            <pre aria-hidden="true"><code id="hl"></code></pre>
+            <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Python коды"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" id="blkPane" hidden>
+        <div class="blocks">
+          <div class="palette" id="palette" aria-label="Блоктар жинағы"></div>
+          <div class="workspace" id="workspace"><div class="drop-line" id="dropLine"></div></div>
+        </div>
+        <div class="blk-foot">
+          <button class="btn small" id="toPython">Python-ға көшіру →</button>
+          <button class="btn small" id="clearBlocks">Тазалау</button>
+          <span class="c-info" style="font-size:12.5px">Блоктарды сүйреп әкел немесе басып қос</span>
+        </div>
+        <pre class="preview" id="blkPreview" aria-label="Блоктардан жасалған Python коды"></pre>
+      </div>
+
+      <div class="controls">
+        <button class="btn go" id="runBtn"><svg viewBox="0 0 16 16"><path d="M4 2l10 6-10 6z"/></svg><span>Іске қосу</span></button>
+        <button class="btn" id="stepBtn" title="Бір команданы орындау"><svg viewBox="0 0 16 16"><path d="M2 2l8 6-8 6zM11 2h3v12h-3z"/></svg>Қадам</button>
+        <button class="btn" id="stopBtn"><svg viewBox="0 0 16 16"><path d="M3 3h10v10H3z"/></svg>Тоқтату</button>
+        <label class="speed" for="speed">Жылдамдық <input type="range" id="speed" min="0" max="4" step="1" value="1"></label>
+      </div>
+      <div class="console" id="console" aria-live="polite"></div>
+      <details class="ref" id="ref"><summary>Командалар анықтамасы</summary><dl id="refList"></dl></details>
+    </section>
+  </main>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+
+/* ================= storage (own key, separate from Pyxel Quest) ================= */
+const STORE_KEY = 'cf-progress-v1';
+let save = { stars: {}, code: {}, blocks: {}, mode: 'py', level: 0, sound: true };
+try { Object.assign(save, JSON.parse(localStorage.getItem(STORE_KEY)) || {}); } catch (e) {}
+function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ================= world data ================= */
+const COL = {
+  red: { kk: 'қызыл', base: '#f49fb4' },
+  blue: { kk: 'көк', base: '#93bcf5' },
+  green: { kk: 'жасыл', base: '#93dbb6' },
+  yellow: { kk: 'сары', base: '#fbdc85' },
+};
+const PART_KK = { head: 'бас', body: 'дене', battery: 'батарея' };
+const rnd = (n) => Math.floor(Math.random() * n);
+const brick = (color) => ({ kind: 'brick', color });
+const randBricks = (n, colors) => Array.from({ length: n }, () => brick(colors[rnd(colors.length)]));
+const bin = (id) => (w) => w.stations.find((s) => s.id === id);
+const binsTotal = (w) => w.stations.filter((s) => s.type === 'bin').reduce((a, s) => a + s.items.length, 0);
+
+const SORT_LAYOUT = (extra) => ({
+  grid: [8, 6],
+  robot: { x: 3, y: 2, dir: 0 },
+  decor: [[0, 0, 'stack', 1], [7, 5, 'stack', 2], [0, 5, 'pipe'], [6, 0, 'gearbox'], [1, 5, 'stack', 3]],
+  ...extra,
+});
+
+const LEVELS = [
+  {
+    title: 'Алғашқы қадам', topic: 'Командалар тізбегі',
+    story: 'Фабрикаға қош келдің, инженер! Робот Бип сары кірпішті жинау қорабына жеткізуі керек. Командаларды ретімен жаз: робот оларды жоғарыдан төмен қарай орындайды.',
+    hint: 'Бип оңға (шығысқа) қарап тұр. Кірпішке дейін 3 қадам: forward(3). Затты алу үшін pick(). Содан кейін солға бұрыл, бір қадам жүр де, drop() орында.',
+    starter: '# Робот Бипті басқар!\n# forward(n) — n қадам алға\n# pick() — алдыңдағы затты алу\n\nforward(3)\npick()\n',
+    par: 5, concept: { label: 'Бірінші әрекеттен қатесіз өт', firstTry: true },
+    grid: [8, 6], robot: { x: 1, y: 3, dir: 0 },
+    stations: [
+      { type: 'pallet', x: 5, y: 3, items: [brick('yellow')] },
+      { type: 'bin', id: 'box', x: 4, y: 1, accept: null },
+    ],
+    decor: [[0, 0, 'pipe'], [7, 5, 'stack', 1], [7, 0, 'gearbox'], [0, 5, 'stack', 2]],
+    cmds: ['forward', 'turn_left', 'turn_right', 'pick', 'drop'],
+    blocks: ['forward', 'turn_left', 'turn_right', 'pick', 'drop'],
+    check: (w) => bin('box')(w).items.length >= 1 ? { ok: true } : { ok: false, msg: 'Кірпіш әлі қорапта емес. Робот қайда тоқтады? Бағдарламаны жалғастыр.' },
+    progress: (w) => `Қорапта: ${bin('box')(w).items.length}/1`,
+  },
+  {
+    title: 'Конвейер іске қосылды', topic: 'for циклі',
+    story: 'Конвейер 5 кірпіш әкеледі. Әрқайсысын алып, қорапқа салу керек. Бір әрекетті бес рет көшіріп жазудың орнына цикл қолдан: for i in range(5):',
+    hint: 'Цикл ішінде (4 бос орын шегініспен): conveyor() → pick() → turn_left() → drop() → turn_right(). Соңғы бұрылыс роботты конвейерге қайта қаратады.',
+    starter: '# conveyor() — келесі кірпішті әкеледі\n# for i in range(5): — ішіндегі командаларды 5 рет қайталайды\n\nfor i in range(5):\n    conveyor()\n    pick()\n',
+    par: 6, concept: { label: 'for циклін қолдан', node: 'For' },
+    grid: [8, 6], robot: { x: 2, y: 3, dir: 0 },
+    stations: [{ type: 'bin', id: 'box', x: 2, y: 2, accept: null }],
+    conveyor: { machine: [7, 3], path: [[6, 3], [5, 3], [4, 3], [3, 3]], gen: () => randBricks(5, ['red', 'blue', 'green', 'yellow']) },
+    decor: [[0, 0, 'stack', 1], [7, 5, 'stack', 2], [0, 5, 'pipe'], [5, 0, 'gearbox']],
+    cmds: ['forward', 'turn_left', 'turn_right', 'pick', 'drop', 'conveyor'],
+    blocks: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'repeat'],
+    check: (w) => {
+      const n = bin('box')(w).items.length;
+      return n >= 5 ? { ok: true } : { ok: false, msg: `Қорапта ${n}/5 кірпіш. Цикл неше рет қайталанатынын тексер.` };
+    },
+    progress: (w) => `Қорапта: ${bin('box')(w).items.length}/5`,
+  },
+  SORT_LAYOUT({
+    title: 'Түстерді сұрыптау', topic: 'if / else шарты',
+    story: 'Конвейер 8 кірпіш әкеледі: қызыл немесе көк. Қызылдарын сол жақтағы, көктерін оң жақтағы себетке сал. Кірпіштің түсін scan() айтады. Түстер әр іске қосқанда өзгереді, сондықтан шарт керек!',
+    hint: 'if scan() == "red": болса — turn_left(), drop(), turn_right(). else: болса — turn_right(), drop(), turn_left(). Мұның бәрі for циклінің ішінде.',
+    starter: '# scan() — қолдағы кірпіштің түсі: "red" немесе "blue"\n\nfor i in range(8):\n    conveyor()\n    pick()\n    if scan() == "red":\n        turn_left()\n        drop()\n        turn_right()\n    else:\n        # көк кірпішті оң жақтағы себетке сал\n        pass\n',
+    par: 11, concept: { label: 'if / else шартын қолдан', node: 'If' },
+    stations: [
+      { type: 'bin', id: 'red', x: 3, y: 1, accept: 'red' },
+      { type: 'bin', id: 'blue', x: 3, y: 3, accept: 'blue' },
+    ],
+    conveyor: { machine: [7, 2], path: [[6, 2], [5, 2], [4, 2]], gen: () => randBricks(8, ['red', 'blue']) },
+    cmds: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'scan'],
+    blocks: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'repeat', 'if_color'],
+    check: (w) => {
+      const n = binsTotal(w);
+      return n >= 8 ? { ok: true } : { ok: false, msg: `Сұрыпталғаны ${n}/8. Барлық кірпішті өңдеу керек.` };
+    },
+    progress: (w) => `Сұрыпталды: ${binsTotal(w)}/8`,
+  }),
+  SORT_LAYOUT({
+    title: 'Қанша зат келеді?', topic: 'while циклі және elif',
+    story: 'Енді конвейердегі кірпіштер саны белгісіз: 5-тен 10-ға дейін. Қызыл кірпіш сол жаққа, көк оң жаққа, ал жасыл кірпіш артыңдағы себетке барады. Зат бар кезде жұмыс істей бер: while has_items():',
+    hint: 'Түсті айнымалыға сақта: c = scan(). Сосын if c == "red": … elif c == "blue": … else: … Артқа бұрылу үшін turn_left() командасын екі рет орында.',
+    starter: '# has_items() — конвейерде кірпіш қалса True\n\nwhile has_items():\n    conveyor()\n    pick()\n    c = scan()\n    if c == "red":\n        turn_left()\n        drop()\n        turn_right()\n',
+    par: 19, concept: { label: 'while циклін қолдан', node: 'While' },
+    stations: [
+      { type: 'bin', id: 'red', x: 3, y: 1, accept: 'red' },
+      { type: 'bin', id: 'blue', x: 3, y: 3, accept: 'blue' },
+      { type: 'bin', id: 'green', x: 2, y: 2, accept: 'green' },
+    ],
+    conveyor: { machine: [7, 2], path: [[6, 2], [5, 2], [4, 2]], hidden: true, gen: () => randBricks(5 + rnd(6), ['red', 'blue', 'green']) },
+    cmds: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'scan', 'has_items'],
+    blocks: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'while_items', 'if_color'],
+    check: (w) => {
+      const left = w.conv.queue.length + (w.conv.end ? 1 : 0) + (w.robot.hand ? 1 : 0);
+      return left === 0 ? { ok: true } : { ok: false, msg: `Тағы ${left} кірпіш сұрыпталмай қалды. while циклі зат біткенше жұмыс істеуі керек.` };
+    },
+    progress: (w) => `Сұрыпталды: ${binsTotal(w)} · Конвейерде: ?`,
+  }),
+  {
+    title: 'Робот құрастыру', topic: 'Функциялар (def)',
+    story: 'Жаңа робот жинау үшін үстелге бас, дене және батарея қойып, assemble() орында. 3 робот жина! Қайталанатын әрекеттерді функцияға орап, оны бірнеше рет шақыр.',
+    hint: 'def build(): деп функция аш. Ішінде: сол жақтан бас ал (turn_left, pick, turn_right, drop), оң жақтан дене, артыңнан батарея, соңында assemble(). Сосын for циклімен build() функциясын 3 рет шақыр.',
+    starter: '# Бас — сол жақта, дене — оң жақта, батарея — артыңда.\n# Үстел — алдыңда.\n\ndef build():\n    turn_left()\n    pick()\n    turn_right()\n    drop()\n    # дене мен батареяны қос, сосын assemble()\n\nbuild()\n',
+    par: 18, concept: { label: 'Өз функцияңды жаса (def)', node: 'Def' },
+    grid: [8, 6], robot: { x: 3, y: 2, dir: 0 },
+    stations: [
+      { type: 'table', id: 'table', x: 4, y: 2 },
+      { type: 'shelf', x: 3, y: 1, part: 'head' },
+      { type: 'shelf', x: 3, y: 3, part: 'body' },
+      { type: 'shelf', x: 2, y: 2, part: 'battery' },
+    ],
+    door: [7, 2], exitPath: [[5, 2], [6, 2], [7, 2]],
+    decor: [[0, 0, 'stack', 1], [7, 5, 'stack', 2], [0, 5, 'pipe'], [5, 0, 'gearbox'], [1, 5, 'stack', 3]],
+    cmds: ['turn_left', 'turn_right', 'pick', 'drop', 'assemble'],
+    blocks: ['turn_left', 'turn_right', 'pick', 'drop', 'assemble', 'repeat', 'def', 'call'],
+    check: (w) => w.built >= 3 ? { ok: true } : { ok: false, msg: `Жиналған роботтар: ${w.built}/3. Функцияны неше рет шақырдың?` },
+    progress: (w) => `Жиналған роботтар: ${w.built}/3`,
+  },
+  SORT_LAYOUT({
+    title: 'Бас инженер', topic: 'Айнымалылар',
+    story: 'Бастық есеп сұрап тұр: конвейерден неше қызыл кірпіш келді? Барлық кірпішті сұрыпта (қызыл — солға, көк — оңға), ал соңында report(сан) арқылы қызылдар санын хабарла.',
+    hint: 'Циклге дейін red = 0 деп жаз. Қызыл кірпіш келген сайын red = red + 1. Цикл біткен соң (шегініссіз) report(red).',
+    starter: '# Айнымалы — мән сақтайтын «қорап»\nred = 0\n\nwhile has_items():\n    conveyor()\n    pick()\n    # сұрыпта және қызылдарды сана\n\nreport(red)\n',
+    par: 14, concept: { label: 'Айнымалымен сана', node: 'Assign' },
+    stations: [
+      { type: 'bin', id: 'red', x: 3, y: 1, accept: 'red' },
+      { type: 'bin', id: 'blue', x: 3, y: 3, accept: 'blue' },
+    ],
+    conveyor: { machine: [7, 2], path: [[6, 2], [5, 2], [4, 2]], hidden: true, gen: () => randBricks(7 + rnd(5), ['red', 'blue']) },
+    cmds: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'scan', 'has_items', 'report'],
+    blocks: ['turn_left', 'turn_right', 'pick', 'drop', 'conveyor', 'while_items', 'if_color', 'set_count', 'inc_count', 'report', 'def', 'call'],
+    check: (w) => {
+      const left = w.conv.queue.length + (w.conv.end ? 1 : 0) + (w.robot.hand ? 1 : 0);
+      if (left) return { ok: false, msg: `Тағы ${left} кірпіш сұрыпталмай қалды.` };
+      if (w.reported === null) return { ok: false, msg: 'Кірпіштер сұрыпталды, бірақ есеп жоқ. Соңында report(red) шақыр.' };
+      if (w.reported !== w.redTotal) return { ok: false, msg: `Есеп қате: сен ${pyStr(w.reported)} дедің, ал қызыл кірпіш ${w.redTotal} болды.` };
+      return { ok: true };
+    },
+    progress: (w) => `Сұрыпталды: ${binsTotal(w)} · Есеп: ${w.reported === null ? '—' : pyStr(w.reported)}`,
+  }),
+];
+
+const CMD_DOC = {
+  forward: ['forward(n)', 'n қадам алға жүру (n жазылмаса — 1 қадам)'],
+  turn_left: ['turn_left()', 'солға 90° бұрылу'],
+  turn_right: ['turn_right()', 'оңға 90° бұрылу'],
+  pick: ['pick()', 'алдыңдағы затты алу'],
+  drop: ['drop()', 'қолдағы затты алдыңдағы себетке немесе үстелге қою'],
+  conveyor: ['conveyor()', 'конвейерді қосу: келесі кірпіш оның соңына келеді'],
+  scan: ['scan()', 'қолдағы кірпіштің түсі: "red", "blue", "green"'],
+  has_items: ['has_items()', 'конвейерде кірпіш қалса True, қалмаса False'],
+  assemble: ['assemble()', 'үстелдегі бөлшектерден робот құрастыру'],
+  report: ['report(n)', 'бастыққа санды хабарлау'],
+};
+
+/* ================= Python-subset interpreter ================= */
+class PyError extends Error { constructor(msg, line) { super(msg); this.line = line; } }
+class RobotError extends Error { constructor(msg) { super(msg); } }
+class ReturnSig { constructor(v) { this.value = v; } }
+const BREAK = { sig: 'break' }, CONTINUE = { sig: 'continue' };
+const KW = new Set(['if', 'elif', 'else', 'while', 'for', 'in', 'def', 'return', 'break', 'continue', 'pass', 'and', 'or', 'not', 'True', 'False', 'None', 'global']);
+const OPS2 = ['**', '//', '==', '!=', '<=', '>=', '+=', '-=', '*=', '/=', '%='];
+
+function tokenize(src) {
+  const lines = src.replace(/\r/g, '').replace(/[“”«»]/g, '"').replace(/[‘’]/g, "'").split('\n');
+  const toks = []; const indents = [0]; let depth = 0;
+  const push = (t, v, line) => toks.push({ t, v, line });
+  for (let ln = 0; ln < lines.length; ln++) {
+    const line = lines[ln].replace(/\t/g, '    ');
+    const L = ln + 1; let i = 0;
+    if (depth === 0) {
+      const ind = line.match(/^ */)[0].length;
+      const rest = line.slice(ind);
+      if (rest === '' || rest[0] === '#') continue;
+      const top = indents[indents.length - 1];
+      if (ind > top) { indents.push(ind); push('INDENT', null, L); }
+      else if (ind < top) {
+        while (ind < indents[indents.length - 1]) { indents.pop(); push('DEDENT', null, L); }
+        if (ind !== indents[indents.length - 1]) throw new PyError('Шегініс (бос орындар саны) жоғарыдағы жолдармен сәйкес емес.', L);
+      }
+      i = ind;
+    }
+    while (i < line.length) {
+      const ch = line[i];
+      if (ch === ' ') { i++; continue; }
+      if (ch === '#') break;
+      const rest = line.slice(i);
+      let m;
+      if ((m = rest.match(/^(\d+\.\d*|\.\d+|\d+)/))) { push('NUM', parseFloat(m[1]), L); i += m[1].length; continue; }
+      if (ch === '"' || ch === "'") {
+        let j = i + 1, s = '';
+        while (j < line.length && line[j] !== ch) {
+          if (line[j] === '\\' && j + 1 < line.length) { const e = line[j + 1]; s += e === 'n' ? '\n' : e === 't' ? '\t' : e; j += 2; }
+          else s += line[j++];
+        }
+        if (j >= line.length) throw new PyError(`Мәтін (string) жабылмаған: соңына ${ch} белгісін қой.`, L);
+        push('STR', s, L); i = j + 1; continue;
+      }
+      if ((m = rest.match(/^[A-Za-z_À-￿][\wÀ-￿]*/))) {
+        push(KW.has(m[0]) ? 'KW' : 'NAME', m[0], L); i += m[0].length; continue;
+      }
+      const two = rest.slice(0, 2);
+      if (OPS2.includes(two)) { push('OP', two, L); i += 2; continue; }
+      if ('+-*/%<>=()[],:.'.includes(ch)) {
+        if (ch === '(' || ch === '[') depth++;
+        if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+        push('OP', ch, L); i++; continue;
+      }
+      throw new PyError(`Түсініксіз таңба: «${ch}»`, L);
+    }
+    if (depth === 0 && toks.length && toks[toks.length - 1].t !== 'NEWLINE' && toks[toks.length - 1].t !== 'INDENT' && toks[toks.length - 1].t !== 'DEDENT') push('NEWLINE', null, L);
+  }
+  const lastLine = lines.length;
+  if (depth > 0) throw new PyError('Жақша жабылмаған: «)» немесе «]» жетіспейді.', lastLine);
+  if (toks.length && toks[toks.length - 1].t !== 'NEWLINE') push('NEWLINE', null, lastLine);
+  while (indents.length > 1) { indents.pop(); push('DEDENT', null, lastLine); }
+  push('EOF', null, lastLine);
+  return toks;
+}
+
+class Parser {
+  constructor(toks) { this.toks = toks; this.p = 0; }
+  peek() { return this.toks[this.p]; }
+  next() { return this.toks[this.p++]; }
+  is(t, v) { const k = this.peek(); return k.t === t && (v === undefined || k.v === v); }
+  err(msg, tok) { return new PyError(msg, (tok || this.peek()).line); }
+  program() {
+    const body = [];
+    while (!this.is('EOF')) {
+      if (this.is('NEWLINE')) { this.next(); continue; }
+      if (this.is('INDENT')) throw this.err('Күтпеген шегініс: бұл жолдың алдындағы бос орындарды алып таста.');
+      if (this.is('DEDENT')) { this.next(); continue; }
+      body.push(this.statement());
+    }
+    return body;
+  }
+  colon() {
+    if (this.is('OP', '=')) throw this.err('Салыстыру үшін «==» қолдан, ал «=» тек мән беру үшін.');
+    if (!this.is('OP', ':')) throw this.err('Жолдың соңында «:» (қос нүкте) жетіспейді.');
+    this.next();
+  }
+  block() {
+    if (this.is('NEWLINE')) {
+      this.next();
+      if (!this.is('INDENT')) throw this.err('«:» белгісінен кейінгі жолдар шегініспен (4 бос орын) басталуы керек.');
+      this.next();
+      const body = [];
+      while (!this.is('DEDENT') && !this.is('EOF')) {
+        if (this.is('NEWLINE')) { this.next(); continue; }
+        body.push(this.statement());
+      }
+      if (this.is('DEDENT')) this.next();
+      return body;
+    }
+    const s = this.simple(); this.endLine(); return [s];
+  }
+  endLine() {
+    if (this.is('NEWLINE')) { this.next(); return; }
+    if (this.is('EOF') || this.is('DEDENT')) return;
+    throw this.err(`Жолдың соңында артық белгі бар: «${this.peek().v}». Әр команда жаңа жолдан жазылады.`);
+  }
+  statement() {
+    const tk = this.peek(); const line = tk.line;
+    if (tk.t === 'KW') {
+      switch (tk.v) {
+        case 'if': return this.ifStmt();
+        case 'while': { this.next(); const test = this.expr(); this.colon(); return { type: 'While', test, body: this.block(), line }; }
+        case 'for': {
+          this.next();
+          if (!this.is('NAME')) throw this.err('for сөзінен кейін айнымалы аты керек, мысалы: for i in range(5):');
+          const name = this.next().v;
+          if (!this.is('KW', 'in')) throw this.err('«in» сөзі жетіспейді: for i in range(5):');
+          this.next(); const iter = this.expr(); this.colon();
+          return { type: 'For', name, iter, body: this.block(), line };
+        }
+        case 'def': {
+          this.next();
+          if (!this.is('NAME')) throw this.err('def сөзінен кейін функция аты керек, мысалы: def build():');
+          const name = this.next().v;
+          if (!this.is('OP', '(')) throw this.err(`Функция атынан кейін жақша керек: def ${name}():`);
+          this.next(); const params = [];
+          while (!this.is('OP', ')')) {
+            if (!this.is('NAME')) throw this.err('Параметр аты күтілді.');
+            params.push(this.next().v);
+            if (this.is('OP', ',')) this.next(); else if (!this.is('OP', ')')) throw this.err('«)» жетіспейді.');
+          }
+          this.next(); this.colon();
+          const body = this.block();
+          return { type: 'Def', name, params, body, line, locals: collectLocals(body) };
+        }
+        case 'elif': case 'else': throw this.err(`«${tk.v}» алдында «if» жоқ немесе шегініс сәйкес емес.`);
+      }
+    }
+    const s = this.simple(); this.endLine(); return s;
+  }
+  ifStmt() {
+    const line = this.next().line; const test = this.expr(); this.colon();
+    const body = this.block(); let orelse = [];
+    if (this.is('KW', 'elif')) orelse = [this.ifStmt()];
+    else if (this.is('KW', 'else')) { this.next(); this.colon(); orelse = this.block(); }
+    return { type: 'If', test, body, orelse, line };
+  }
+  simple() {
+    const tk = this.peek(); const line = tk.line;
+    if (tk.t === 'KW') {
+      if (tk.v === 'pass') { this.next(); return { type: 'Pass', line }; }
+      if (tk.v === 'break') { this.next(); return { type: 'Break', line }; }
+      if (tk.v === 'continue') { this.next(); return { type: 'Continue', line }; }
+      if (tk.v === 'return') {
+        this.next();
+        const value = (this.is('NEWLINE') || this.is('EOF') || this.is('DEDENT')) ? null : this.expr();
+        return { type: 'Return', value, line };
+      }
+      if (tk.v === 'global') {
+        this.next(); const names = [];
+        do { if (!this.is('NAME')) throw this.err('global сөзінен кейін айнымалы аты керек.'); names.push(this.next().v); } while (this.is('OP', ',') && this.next());
+        return { type: 'Global', names, line };
+      }
+    }
+    const e = this.expr();
+    if (this.is('OP', '=')) {
+      if (e.type !== 'Name' && e.type !== 'Index') throw this.err('«=» белгісінің сол жағында айнымалы аты болуы керек.');
+      this.next(); return { type: 'Assign', target: e, value: this.expr(), line };
+    }
+    if (this.peek().t === 'OP' && ['+=', '-=', '*=', '/=', '%='].includes(this.peek().v)) {
+      if (e.type !== 'Name') throw this.err('Сол жақта айнымалы аты болуы керек.');
+      const op = this.next().v[0]; return { type: 'AugAssign', target: e, op, value: this.expr(), line };
+    }
+    return { type: 'Expr', expr: e, line };
+  }
+  expr() { return this.or(); }
+  or() { let l = this.and(); while (this.is('KW', 'or')) { const line = this.next().line; l = { type: 'Bool', op: 'or', l, r: this.and(), line }; } return l; }
+  and() { let l = this.not(); while (this.is('KW', 'and')) { const line = this.next().line; l = { type: 'Bool', op: 'and', l, r: this.not(), line }; } return l; }
+  not() { if (this.is('KW', 'not')) { const line = this.next().line; return { type: 'Not', e: this.not(), line }; } return this.cmp(); }
+  cmp() {
+    let l = this.arith();
+    const ops = ['==', '!=', '<', '>', '<=', '>='];
+    while ((this.peek().t === 'OP' && ops.includes(this.peek().v)) || this.is('KW', 'in') || (this.is('KW', 'not') && this.toks[this.p + 1].v === 'in')) {
+      let op = this.next().v; if (op === 'not') { this.next(); op = 'not in'; }
+      const line = this.peek().line;
+      l = { type: 'Bin', op, l, r: this.arith(), line };
+    }
+    return l;
+  }
+  arith() { let l = this.term(); while (this.is('OP', '+') || this.is('OP', '-')) { const t = this.next(); l = { type: 'Bin', op: t.v, l, r: this.term(), line: t.line }; } return l; }
+  term() { let l = this.unary(); while (['*', '/', '//', '%'].some((o) => this.is('OP', o))) { const t = this.next(); l = { type: 'Bin', op: t.v, l, r: this.unary(), line: t.line }; } return l; }
+  unary() { if (this.is('OP', '-') || this.is('OP', '+')) { const t = this.next(); return { type: 'Unary', op: t.v, e: this.unary(), line: t.line }; } return this.power(); }
+  power() { const b = this.postfix(); if (this.is('OP', '**')) { const t = this.next(); return { type: 'Bin', op: '**', l: b, r: this.unary(), line: t.line }; } return b; }
+  postfix() {
+    let e = this.atom();
+    for (;;) {
+      if (this.is('OP', '(')) {
+        const line = this.next().line; const args = [];
+        while (!this.is('OP', ')')) {
+          args.push(this.expr());
+          if (this.is('OP', ',')) this.next(); else if (!this.is('OP', ')')) throw this.err('Аргументтерді үтірмен бөл немесе жақшаны жап «)».');
+        }
+        this.next(); e = { type: 'Call', func: e, args, line };
+      } else if (this.is('OP', '[')) {
+        const line = this.next().line; const idx = this.expr();
+        if (!this.is('OP', ']')) throw this.err('«]» жетіспейді.');
+        this.next(); e = { type: 'Index', obj: e, idx, line };
+      } else if (this.is('OP', '.')) {
+        const line = this.next().line;
+        if (!this.is('NAME')) throw this.err('Нүктеден кейін ат керек.');
+        e = { type: 'Attr', obj: e, name: this.next().v, line };
+      } else return e;
+    }
+  }
+  atom() {
+    const t = this.peek();
+    if (t.t === 'NUM') { this.next(); return { type: 'Const', v: t.v, line: t.line }; }
+    if (t.t === 'STR') { this.next(); return { type: 'Const', v: t.v, line: t.line }; }
+    if (t.t === 'NAME') { this.next(); return { type: 'Name', name: t.v, line: t.line }; }
+    if (t.t === 'KW' && (t.v === 'True' || t.v === 'False' || t.v === 'None')) { this.next(); return { type: 'Const', v: t.v === 'True' ? true : t.v === 'False' ? false : null, line: t.line }; }
+    if (this.is('OP', '(')) { this.next(); const e = this.expr(); if (!this.is('OP', ')')) throw this.err('«)» жетіспейді.'); this.next(); return e; }
+    if (this.is('OP', '[')) {
+      const line = this.next().line; const items = [];
+      while (!this.is('OP', ']')) { items.push(this.expr()); if (this.is('OP', ',')) this.next(); else if (!this.is('OP', ']')) throw this.err('«]» жетіспейді.'); }
+      this.next(); return { type: 'List', items, line };
+    }
+    if (t.t === 'NEWLINE' || t.t === 'EOF') throw this.err('Жол аяқталмай қалды: бір нәрсе жетіспейді.');
+    if (t.t === 'INDENT' || t.t === 'DEDENT') throw this.err('Шегініс қате.');
+    throw this.err(`Бұл жерде «${t.v}» болмауы керек.`);
+  }
+}
+function collectLocals(body) {
+  const set = new Set(), glob = new Set();
+  (function walk(arr) {
+    for (const s of arr) {
+      if (s.type === 'Assign' && s.target.type === 'Name') set.add(s.target.name);
+      if (s.type === 'AugAssign') set.add(s.target.name);
+      if (s.type === 'For') set.add(s.name);
+      if (s.type === 'Def') { set.add(s.name); continue; }
+      if (s.type === 'Global') s.names.forEach((n) => glob.add(n));
+      if (s.body) walk(s.body); if (s.orelse) walk(s.orelse);
+    }
+  })(body);
+  glob.forEach((n) => set.delete(n));
+  return set;
+}
+function parse(src) { return new Parser(tokenize(src)).program(); }
+
+function pyStr(v) {
+  if (v === null || v === undefined) return 'None';
+  if (v === true) return 'True'; if (v === false) return 'False';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(+v.toFixed(10));
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return '[' + v.map(pyRepr).join(', ') + ']';
+  if (v.type === 'func') return `<функция ${v.name}>`;
+  if (v.type === 'builtin') return `<команда ${v.name}>`;
+  return String(v);
+}
+function pyRepr(v) { return typeof v === 'string' ? `'${v}'` : pyStr(v); }
+function truthy(v) { return !(v === null || v === false || v === 0 || v === '' || (Array.isArray(v) && v.length === 0)); }
+function typeKK(v) { return typeof v === 'number' ? 'сан' : typeof v === 'string' ? 'мәтін' : typeof v === 'boolean' ? 'True/False' : Array.isArray(v) ? 'тізім' : v === null ? 'None' : 'функция'; }
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+function action(name, min, max) {
+  return { type: 'builtin', name, fn: function* (args, line) {
+    if (args.length < min || args.length > max) throw new PyError(max === 0 ? `${name}() командасы жақша ішінде ешнәрсе қабылдамайды.` : `${name}() командасына ${min === max ? min : min + '–' + max} мән керек, ал ${args.length} берілді.`, line);
+    return yield { kind: 'action', name, args, line };
+  } };
+}
+function syncFn(name, f) { return { type: 'builtin', name, fn: function* (args, line) { return f(args, line); } }; }
+const BUILTINS = new Map([
+  ['forward', action('forward', 0, 1)], ['turn_left', action('turn_left', 0, 0)], ['turn_right', action('turn_right', 0, 0)],
+  ['pick', action('pick', 0, 0)], ['drop', action('drop', 0, 0)], ['conveyor', action('conveyor', 0, 0)],
+  ['scan', action('scan', 0, 0)], ['has_items', action('has_items', 0, 0)], ['assemble', action('assemble', 0, 0)],
+  ['report', action('report', 1, 1)], ['say', action('print', 0, 9)],
+  ['print', { type: 'builtin', name: 'print', fn: function* (args, line) { return yield { kind: 'action', name: 'print', args: [args.map(pyStr).join(' ')], line }; } }],
+  ['range', syncFn('range', (a, line) => {
+    if (!a.length || a.length > 3) throw new PyError('range() ішіне 1–3 сан жаз, мысалы range(5).', line);
+    a.forEach((x) => { if (typeof x !== 'number' || !Number.isInteger(x)) throw new PyError('range() тек бүтін сандармен жұмыс істейді.', line); });
+    let [s, e, st] = a.length === 1 ? [0, a[0], 1] : [a[0], a[1], a[2] ?? 1];
+    if (st === 0) throw new PyError('range() қадамы 0 болмайды.', line);
+    const out = []; for (let i = s; st > 0 ? i < e : i > e; i += st) { out.push(i); if (out.length > 100000) throw new PyError('range() тым үлкен.', line); }
+    return out;
+  })],
+  ['len', syncFn('len', (a, line) => { const v = a[0]; if (typeof v === 'string' || Array.isArray(v)) return v.length; throw new PyError(`len() ${typeKK(v)} үшін жұмыс істемейді.`, line); })],
+  ['str', syncFn('str', (a) => pyStr(a[0]))],
+  ['int', syncFn('int', (a, line) => { const v = a[0]; const n = typeof v === 'string' ? Number(v.trim()) : Number(v); if (!Number.isFinite(n)) throw new PyError(`«${pyStr(v)}» мәтінін санға айналдыру мүмкін емес.`, line); return Math.trunc(n); })],
+  ['abs', syncFn('abs', (a) => Math.abs(a[0]))],
+  ['min', syncFn('min', (a) => Math.min(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)))],
+  ['max', syncFn('max', (a) => Math.max(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)))],
+]);
+BUILTINS.set('robot', { type: 'ns', members: BUILTINS });
+
+class Scope { constructor(parent, locals) { this.vars = new Map(); this.parent = parent; this.glob = new Set(); this.locals = locals || null; } }
+
+class Interp {
+  constructor(ast) { this.ast = ast; this.root = new Scope(null); this.depth = 0; }
+  *run() {
+    try { yield* this.block(this.ast, this.root); }
+    catch (e) {
+      if (e === BREAK || e === CONTINUE) throw new PyError(`«${e.sig}» тек цикл ішінде жұмыс істейді.`, this.lastLine);
+      if (e instanceof ReturnSig) throw new PyError('«return» тек функция ішінде жұмыс істейді.', this.lastLine);
+      throw e;
+    }
+  }
+  *block(stmts, sc) { for (const s of stmts) yield* this.stmt(s, sc); }
+  lookup(name, sc, line) {
+    for (let s = sc; s; s = s.parent) {
+      if (s.vars.has(name)) return s.vars.get(name);
+      if (s.locals && s.locals.has(name) && !s.glob.has(name)) throw new PyError(`«${name}» айнымалысы функция ішінде мән берілмей тұрып қолданылды. Сыртқы айнымалыны өзгерту үшін функцияның басына global ${name} деп жаз.`, line);
+      if (s.glob.has(name)) { s = this.root; if (s.vars.has(name)) return s.vars.get(name); break; }
+    }
+    if (BUILTINS.has(name)) return BUILTINS.get(name);
+    const cands = [...BUILTINS.keys(), ...this.root.vars.keys()].filter((k) => k !== 'robot');
+    let best = null, bd = 3;
+    for (const c of cands) { const d = lev(name.toLowerCase(), c); if (d < bd) { bd = d; best = c; } }
+    throw new PyError(`«${name}» деген атау белгісіз.` + (best ? ` Мүмкін, «${best}» деп жазғың келді?` : ' Алдымен оған мән бер.'), line);
+  }
+  assign(name, v, sc) { (sc.glob.has(name) ? this.root : sc).vars.set(name, v); }
+  *stmt(s, sc) {
+    this.lastLine = s.line;
+    yield { kind: 'line', line: s.line };
+    switch (s.type) {
+      case 'Pass': case 'Global': if (s.type === 'Global') s.names.forEach((n) => sc.glob.add(n)); return;
+      case 'Expr': {
+        const v = yield* this.ev(s.expr, sc);
+        if (v && (v.type === 'builtin' || v.type === 'func')) throw new PyError(`${v.name} командасын орындау үшін жақша қос: ${v.name}()`, s.line);
+        return;
+      }
+      case 'Assign': {
+        const v = yield* this.ev(s.value, sc);
+        if (s.target.type === 'Name') this.assign(s.target.name, v, sc);
+        else {
+          const o = yield* this.ev(s.target.obj, sc), i = yield* this.ev(s.target.idx, sc);
+          if (!Array.isArray(o)) throw new PyError('Тек тізімнің элементіне мән беруге болады.', s.line);
+          o[this.index(o, i, s.line)] = v;
+        }
+        return;
+      }
+      case 'AugAssign': {
+        const cur = this.lookup(s.target.name, sc, s.line);
+        const v = yield* this.ev(s.value, sc);
+        this.assign(s.target.name, this.binop(s.op, cur, v, s.line), sc); return;
+      }
+      case 'If': {
+        if (truthy(yield* this.ev(s.test, sc))) yield* this.block(s.body, sc); else yield* this.block(s.orelse, sc); return;
+      }
+      case 'While': {
+        while (truthy(yield* this.ev(s.test, sc))) {
+          try { yield* this.block(s.body, sc); } catch (e) { if (e === BREAK) break; if (e === CONTINUE) continue; throw e; }
+          yield { kind: 'line', line: s.line };
+        }
+        return;
+      }
+      case 'For': {
+        let it = yield* this.ev(s.iter, sc);
+        if (typeof it === 'string') it = [...it];
+        if (!Array.isArray(it)) throw new PyError(`for циклі ${typeKK(it)} бойынша жүре алмайды. range(...) қолдан.`, s.line);
+        for (const x of [...it]) {
+          this.assign(s.name, x, sc);
+          try { yield* this.block(s.body, sc); } catch (e) { if (e === BREAK) break; if (e === CONTINUE) continue; throw e; }
+        }
+        return;
+      }
+      case 'Def': this.assign(s.name, { type: 'func', name: s.name, params: s.params, body: s.body, locals: s.locals, closure: sc }, sc); return;
+      case 'Return': throw new ReturnSig(s.value ? yield* this.ev(s.value, sc) : null);
+      case 'Break': throw BREAK;
+      case 'Continue': throw CONTINUE;
+    }
+  }
+  index(o, i, line) {
+    if (typeof i !== 'number' || !Number.isInteger(i)) throw new PyError('Индекс бүтін сан болуы керек.', line);
+    const k = i < 0 ? o.length + i : i;
+    if (k < 0 || k >= o.length) throw new PyError(`Индекс ${i} шектен тыс (ұзындығы ${o.length}).`, line);
+    return k;
+  }
+  binop(op, a, b, line) {
+    const num = (x) => typeof x === 'number' || typeof x === 'boolean';
+    switch (op) {
+      case '+':
+        if (num(a) && num(b)) return a + b;
+        if (typeof a === 'string' && typeof b === 'string') return a + b;
+        if (Array.isArray(a) && Array.isArray(b)) return a.concat(b);
+        throw new PyError(`${typeKK(a)} мен ${typeKK(b)} қосылмайды. Керек болса str() немесе int() қолдан.`, line);
+      case '-': case '/': case '//': case '%': case '**':
+        if (!num(a) || !num(b)) throw new PyError(`«${op}» амалы тек сандармен жұмыс істейді.`, line);
+        if ((op === '/' || op === '//' || op === '%') && +b === 0) throw new PyError('Нөлге бөлуге болмайды.', line);
+        if (op === '-') return a - b; if (op === '/') return a / b; if (op === '//') return Math.floor(a / b);
+        if (op === '%') return ((a % b) + b) % b; return a ** b;
+      case '*':
+        if (num(a) && num(b)) return a * b;
+        if (typeof a === 'string' && num(b)) return a.repeat(Math.max(0, b));
+        if (Array.isArray(a) && num(b)) return Array.from({ length: Math.max(0, b) }, () => a).flat();
+        throw new PyError(`${typeKK(a)} мен ${typeKK(b)} көбейтілмейді.`, line);
+      case '==': return JSON.stringify(a) === JSON.stringify(b);
+      case '!=': return JSON.stringify(a) !== JSON.stringify(b);
+      case '<': case '>': case '<=': case '>=':
+        if (!((num(a) && num(b)) || (typeof a === 'string' && typeof b === 'string'))) throw new PyError(`${typeKK(a)} мен ${typeKK(b)} салыстырылмайды.`, line);
+        return op === '<' ? a < b : op === '>' ? a > b : op === '<=' ? a <= b : a >= b;
+      case 'in': case 'not in': {
+        let r;
+        if (typeof b === 'string') r = b.includes(a);
+        else if (Array.isArray(b)) r = b.some((x) => JSON.stringify(x) === JSON.stringify(a));
+        else throw new PyError('«in» тек мәтін немесе тізіммен жұмыс істейді.', line);
+        return op === 'in' ? r : !r;
+      }
+    }
+  }
+  *ev(n, sc) {
+    switch (n.type) {
+      case 'Const': return n.v;
+      case 'Name': return this.lookup(n.name, sc, n.line);
+      case 'List': { const out = []; for (const x of n.items) out.push(yield* this.ev(x, sc)); return out; }
+      case 'Not': return !truthy(yield* this.ev(n.e, sc));
+      case 'Unary': { const v = yield* this.ev(n.e, sc); if (typeof v !== 'number') throw new PyError('Минус тек санға қолданылады.', n.line); return n.op === '-' ? -v : v; }
+      case 'Bool': { const l = yield* this.ev(n.l, sc); if (n.op === 'and') return truthy(l) ? yield* this.ev(n.r, sc) : l; return truthy(l) ? l : yield* this.ev(n.r, sc); }
+      case 'Bin': { const l = yield* this.ev(n.l, sc); const r = yield* this.ev(n.r, sc); return this.binop(n.op, l, r, n.line); }
+      case 'Index': {
+        const o = yield* this.ev(n.obj, sc), i = yield* this.ev(n.idx, sc);
+        if (typeof o === 'string' || Array.isArray(o)) return o[this.index(o, i, n.line)];
+        throw new PyError(`${typeKK(o)} ішінен индекспен алуға болмайды.`, n.line);
+      }
+      case 'Attr': {
+        const o = yield* this.ev(n.obj, sc);
+        if (o && o.type === 'ns' && o.members.has(n.name)) return o.members.get(n.name);
+        if (Array.isArray(o) && n.name === 'append') return { type: 'builtin', name: 'append', fn: function* (a) { o.push(a[0]); return null; } };
+        throw new PyError(`«${n.name}» деген мүше жоқ.`, n.line);
+      }
+      case 'Call': {
+        const f = yield* this.ev(n.func, sc);
+        const args = []; for (const a of n.args) args.push(yield* this.ev(a, sc));
+        if (f && f.type === 'builtin') return yield* f.fn(args, n.line);
+        if (f && f.type === 'func') {
+          if (args.length !== f.params.length) throw new PyError(`${f.name}() функциясына ${f.params.length} мән керек, ал ${args.length} берілді.`, n.line);
+          if (++this.depth > 60) throw new PyError('Функция өзін-өзі тым көп шақырды (шексіз рекурсия?).', n.line);
+          const local = new Scope(f.closure, f.locals);
+          f.params.forEach((p, i) => local.vars.set(p, args[i]));
+          try { yield* this.block(f.body, local); }
+          catch (e) { if (e instanceof ReturnSig) return e.value; throw e; }
+          finally { this.depth--; }
+          return null;
+        }
+        throw new PyError(`«${pyStr(f)}» — команда емес, оны шақыруға болмайды.`, n.line);
+      }
+    }
+    throw new PyError('Түсініксіз өрнек.', n.line);
+  }
+}
+function astHas(nodes, type) {
+  let found = false;
+  (function walk(x) {
+    if (found || !x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    if (x.type === type || (type === 'Assign' && x.type === 'AugAssign')) { found = true; return; }
+    for (const k in x) if (k !== 'locals' && typeof x[k] === 'object') walk(x[k]);
+  })(nodes);
+  return found;
+}
+function countLines(code) { return code.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).length; }
+
+/* ================= tweens & sound ================= */
+const SPEEDS = [0.5, 1, 2, 4, 10];
+let SPEED = 1;
+const tweens = [];
+function tween(ms, fn) { return new Promise((res) => { const tw = { t: 0, d: Math.max(1, ms / SPEED), fn, res }; tweens.push(tw); fn(0); }); }
+const wait = (ms) => tween(ms, () => {});
+function stepTweens(dt) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i]; tw.t += dt; const p = Math.min(1, tw.t / tw.d); tw.fn(p);
+    if (p >= 1) { tweens.splice(i, 1); tw.res(); }
+  }
+}
+function flushTweens() { while (tweens.length) { const tw = tweens.pop(); try { tw.fn(1); } catch (e) {} tw.res(); } }
+const ease = (p) => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+
+let actx = null;
+function beep(freq, dur = 0.08, type = 'sine', vol = 0.06, slide = 0) {
+  if (!save.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) {}
+}
+const SFX = {
+  step: () => beep(220, 0.04, 'triangle', 0.03), pick: () => beep(520, 0.09, 'sine', 0.06, 1.5), drop: () => beep(700, 0.1, 'sine', 0.06, 0.6),
+  belt: () => beep(140, 0.12, 'square', 0.015), scan: () => beep(1100, 0.08, 'sine', 0.035, 1.3), err: () => beep(160, 0.3, 'sawtooth', 0.05, 0.5),
+  build: () => [523, 659, 784].forEach((f, i) => setTimeout(() => beep(f, 0.12, 'triangle', 0.05), i * 70)),
+  win: () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.06), i * 110)),
+};
+
+/* ================= world ================= */
+const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const MINI_COLORS = ['#f6a9c0', '#a6e3c7', '#c9b6f3', '#fbd98a', '#9fc4f7'];
+let world, L, levelIndex = 0;
+
+function makeWorld(lv) {
+  const w = {
+    W: lv.grid[0], H: lv.grid[1], t: 0,
+    robot: { x: lv.robot.x, y: lv.robot.y, dir: lv.robot.dir, hand: null, walk: 0, arm: 0, hop: 0, scan: 0, alert: 0, bubble: null, sad: 0 },
+    stations: lv.stations.map((s) => ({ ...s, items: (s.items || []).map((i) => ({ ...i })), bounce: 0 })),
+    conv: null, minis: [], particles: [], floats: [], flying: [], built: 0, reported: null, redTotal: 0, belt: 0, flash: 0, confetti: [],
+  };
+  if (lv.conveyor) {
+    const c = lv.conveyor, q = c.gen();
+    w.conv = { machine: { x: c.machine[0], y: c.machine[1] }, path: c.path, queue: q, moving: null, end: null, hidden: !!c.hidden, blink: 0 };
+    w.redTotal = q.filter((i) => i.color === 'red').length;
+    w.stations.push({ type: 'machine', x: c.machine[0], y: c.machine[1], bounce: 0 });
+  }
+  if (lv.door) w.stations.push({ type: 'door', x: lv.door[0], y: lv.door[1], bounce: 0 });
+  (lv.decor || []).forEach((d) => w.stations.push({ type: 'decor', kind: d[2], seed: d[3] || 0, x: d[0], y: d[1], bounce: 0 }));
+  return w;
+}
+const stationAt = (x, y) => world.stations.find((s) => s.x === x && s.y === y);
+const convAt = (x, y) => world.conv && world.conv.path.some((p) => p[0] === x && p[1] === y);
+const front = () => ({ x: world.robot.x + DIRS[world.robot.dir][0], y: world.robot.y + DIRS[world.robot.dir][1] });
+const NAME_KK = { bin: 'себет', table: 'құрастыру үстелі', shelf: 'бөлшектер сөресі', machine: 'конвейер машинасы', door: 'шығу есігі', pallet: 'паллет', decor: 'кедергі' };
+
+function bubble(text, ms = 1400, kind = 'say') { world.robot.bubble = { text, until: performance.now() + ms / Math.min(SPEED, 3), kind }; }
+function floatText(x, y, z, text, color) { world.floats.push({ x, y, z, text, color, life: 1 }); }
+function sparkle(x, y, z, color, n = 10) {
+  for (let i = 0; i < n; i++) world.particles.push({ x, y, z, vx: (Math.random() - 0.5) * 1.6, vy: (Math.random() - 0.5) * 1.6, vz: 1.5 + Math.random() * 1.5, life: 1, color });
+}
+function fail(msg) { world.robot.alert = 1; SFX.err(); throw new RobotError(msg); }
+
+const ACT = {
+  async forward(n = 1) {
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 0) fail('forward() ішіне қадам санын жаз: forward(2).');
+    if (n > 20) fail('Бір рет 20 қадамнан артық жүруге болмайды.');
+    const r = world.robot;
+    for (let k = 0; k < n; k++) {
+      const [dx, dy] = DIRS[r.dir], nx = r.x + dx, ny = r.y + dy;
+      if (nx < 0 || ny < 0 || nx >= world.W || ny >= world.H) fail('Робот фабрика шетіне жетті, әрі қарай жол жоқ!');
+      const s = stationAt(nx, ny);
+      if (s || convAt(nx, ny)) {
+        await tween(160, (p) => { const b = Math.sin(p * Math.PI) * 0.15; r.x = nx - dx + dx * b; r.y = ny - dy + dy * b; });
+        r.x = nx - dx; r.y = ny - dy;
+        fail(`Алда ${s ? NAME_KK[s.type] : 'конвейер'} тұр, робот одан өте алмайды.`);
+      }
+      const sx = r.x, sy = r.y; SFX.step();
+      await tween(360, (p) => { const e = ease(p); r.x = sx + dx * e; r.y = sy + dy * e; r.walk = p * Math.PI * 2; });
+      r.x = nx; r.y = ny; r.walk = 0;
+    }
+  },
+  async turn_left() { await turn(-1); },
+  async turn_right() { await turn(1); },
+  async pick() {
+    const r = world.robot;
+    if (r.hand) fail('Қолыңда зат бар! Алдымен оны drop() арқылы қой.');
+    const f = front(), s = stationAt(f.x, f.y), c = world.conv;
+    let item = null;
+    const end = c && c.path[c.path.length - 1];
+    if (end && f.x === end[0] && f.y === end[1]) {
+      if (!c.end) fail(c.moving ? 'Кірпіш әлі жолда.' : 'Конвейердің соңында зат жоқ. Алдымен conveyor() қос.');
+      item = c.end; c.end = null;
+    } else if (s && s.type === 'pallet') {
+      if (!s.items.length) fail('Паллет бос, алатын зат қалмады.');
+      item = s.items.pop();
+    } else if (s && s.type === 'shelf') item = { kind: s.part };
+    else if (s && (s.type === 'bin' || s.type === 'table')) fail(`${NAME_KK[s.type][0].toUpperCase() + NAME_KK[s.type].slice(1)} ішінен зат алуға болмайды.`);
+    else fail('Алдыңда алатын зат жоқ. Робот қай жаққа қарап тұрғанын тексер.');
+    SFX.pick();
+    await tween(260, (p) => { r.arm = Math.sin(p * Math.PI) * 1; if (p > 0.5 && !r.hand) r.hand = item; });
+    r.hand = item; r.arm = 0;
+  },
+  async drop() {
+    const r = world.robot;
+    if (!r.hand) fail('Қолың бос, қоятын зат жоқ. Алдымен pick() орында.');
+    const f = front(), s = stationAt(f.x, f.y), it = r.hand;
+    if (!s) fail(convAt(f.x, f.y) ? 'Затты конвейерге қайта қоюға болмайды.' : 'Алдыңда себет те, үстел де жоқ. Затты еденге тастауға болмайды!');
+    if (s.type === 'bin') {
+      if (s.accept && it.color !== s.accept) fail(`Қате себет! ${COL[it.color] ? COL[it.color].kk : ''} кірпіш ${COL[s.accept].kk} себетке түсті.`);
+    } else if (s.type === 'table') {
+      if (it.kind === 'brick') fail('Үстелге тек робот бөлшектері қойылады.');
+      if (s.items.some((i) => i.kind === it.kind)) fail(`Үстелде ${PART_KK[it.kind]} бар! Басқа бөлшек әкел немесе assemble() орында.`);
+    } else fail(`${NAME_KK[s.type]} ішіне зат салуға болмайды.`);
+    r.hand = null;
+    const fl = { item: it, x: 0, y: 0, z: 0 }; world.flying.push(fl);
+    const sx = r.x + 0.5 + DIRS[r.dir][0] * 0.3, sy = r.y + 0.5 + DIRS[r.dir][1] * 0.3, ex = s.x + 0.5, ey = s.y + 0.5;
+    await tween(300, (p) => { r.arm = Math.sin(p * Math.PI) * 0.8; fl.x = sx + (ex - sx) * p; fl.y = sy + (ey - sy) * p; fl.z = 0.55 + Math.sin(p * Math.PI) * 0.5 - p * 0.1; });
+    world.flying.splice(world.flying.indexOf(fl), 1); r.arm = 0;
+    s.items.push(it); s.bounce = 1; SFX.drop();
+    sparkle(ex, ey, 0.6, it.color ? COL[it.color].base : '#fff', 8);
+    if (s.type === 'bin') floatText(ex, ey, 0.9, '+1', '#2b2e57');
+  },
+  async conveyor() {
+    const c = world.conv;
+    if (!c) fail('Бұл деңгейде конвейер жоқ.');
+    if (c.end) fail('Конвейердің соңында кірпіш тұр! Алдымен оны pick() арқылы ал.');
+    if (!c.queue.length) fail('Конвейерде кірпіш қалмады. has_items() арқылы тексеруге болады.');
+    const item = c.queue.shift(); const len = c.path.length;
+    c.moving = { item, pos: -0.6 }; c.blink = 1; SFX.belt();
+    await tween(240 * (len + 0.6), (p) => { c.moving.pos = -0.6 + p * (len - 1 + 0.6); });
+    c.end = item; c.moving = null;
+  },
+  async scan() {
+    const r = world.robot;
+    if (!r.hand) fail('Қолыңда зат жоқ, сканерлейтін ештеңе жоқ.');
+    SFX.scan();
+    await tween(320, (p) => { r.scan = Math.sin(p * Math.PI); });
+    r.scan = 0;
+    const v = r.hand.kind === 'brick' ? r.hand.color : r.hand.kind;
+    floatText(r.x + 0.5, r.y + 0.5, 1.35, `"${v}"`, '#4a68b8');
+    return v;
+  },
+  async has_items() { await wait(60); return !!(world.conv && world.conv.queue.length); },
+  async assemble() {
+    const f = front(), s = stationAt(f.x, f.y);
+    if (!s || s.type !== 'table') fail('assemble() үшін робот құрастыру үстеліне қарап тұруы керек.');
+    const miss = ['head', 'body', 'battery'].filter((k) => !s.items.some((i) => i.kind === k));
+    if (miss.length) fail('Үстелде жетіспейді: ' + miss.map((k) => PART_KK[k]).join(', ') + '.');
+    world.flash = 1; SFX.build();
+    await tween(450, (p) => { s.bounce = Math.sin(p * Math.PI); world.flash = 1 - p; });
+    s.items = []; world.built++;
+    sparkle(s.x + 0.5, s.y + 0.5, 0.8, '#fbdc85', 18);
+    floatText(s.x + 0.5, s.y + 0.5, 1.4, 'Жаңа робот!', '#7d5fd6');
+    spawnMini(s);
+    await wait(250);
+  },
+  async report(n) {
+    world.reported = n; bubble(`Есеп: ${pyStr(n)}`, 1800); SFX.pick();
+    await wait(500);
+  },
+  async print(text) { log('out', text); bubble(text.length > 40 ? text.slice(0, 38) + '…' : text, 1500); await wait(350); },
+};
+async function turn(d) {
+  const r = world.robot; let done = false;
+  await tween(220, (p) => { r.hop = Math.sin(p * Math.PI) * 0.07; if (p >= 0.5 && !done) { r.dir = (r.dir + d + 4) % 4; done = true; } });
+  r.hop = 0;
+}
+async function spawnMini(table) {
+  const w = world;
+  const m = { x: table.x, y: table.y, z: 0.52, dir: 0, walk: 0, alpha: 1, color: MINI_COLORS[w.built % MINI_COLORS.length] };
+  w.minis.push(m);
+  const path = L.exitPath || [];
+  await tween(380, (p) => { m.z = 0.52 + Math.sin(p * Math.PI) * 0.4 - p * 0.52; m.x = table.x + p * (path[0] ? path[0][0] - table.x : 0); m.y = table.y + p * (path[0] ? path[0][1] - table.y : 0); });
+  for (let i = 1; i < path.length; i++) {
+    if (w !== world) return;
+    const sx = m.x, sy = m.y, [ex, ey] = path[i];
+    m.dir = ex > sx ? 0 : ex < sx ? 2 : ey > sy ? 1 : 3;
+    const last = i === path.length - 1;
+    await tween(420, (p) => { m.x = sx + (ex - sx) * p; m.y = sy + (ey - sy) * p; m.walk = p * Math.PI * 2; if (last) m.alpha = 1 - p; });
+  }
+  const k = w.minis.indexOf(m); if (k >= 0) w.minis.splice(k, 1);
+}
+
+/* ================= renderer ================= */
+const cv = $('#scene'), ctx = cv.getContext('2d');
+let CW = 600, CH = 400, DPR = 1, TW = 60, TH = 30, HU = 33, OX = 0, OY = 0;
+const WALL = 2.1;
+function resize() {
+  const r = cv.getBoundingClientRect(); if (!r.width) return;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * DPR); cv.height = Math.round(r.height * DPR); CW = r.width; CH = r.height; layout();
+}
+function layout() {
+  if (!world) return;
+  const W = world.W, H = world.H;
+  const topPad = 54;
+  TW = Math.min(CW * 0.94 / ((W + H) / 2), (CH - topPad) * 0.96 / ((W + H) / 4 + (WALL + 0.45) * 0.55));
+  TH = TW / 2; HU = TW * 0.55;
+  OX = CW / 2 - (W - H) * TW / 4;
+  const total = (W + H) * TH / 2 + (WALL + 0.45) * HU;
+  OY = topPad + (CH - topPad - total) / 2 + WALL * HU;
+}
+new ResizeObserver(resize).observe(cv);
+const P = (x, y, z = 0) => [OX + (x - y) * TW / 2, OY + (x + y) * TH / 2 - z * HU];
+
+const shadeCache = new Map();
+function shade(hex, a) {
+  const k = hex + a; let c = shadeCache.get(k); if (c) return c;
+  const n = parseInt(hex.slice(1), 16), rgb = [n >> 16 & 255, n >> 8 & 255, n & 255];
+  const t = a > 0 ? [255, 255, 255] : [72, 62, 130], f = Math.abs(a);
+  c = `rgb(${rgb.map((v, i) => Math.round(v + (t[i] - v) * f)).join(',')})`;
+  shadeCache.set(k, c); return c;
+}
+function poly(pts, fill, stroke, lw = 1) {
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function faceBasis(face, x0, y0, z0, w, d, h) {
+  const z1 = z0 + h;
+  if (face === '+x') return [P(x0 + w, y0 + d, z1), P(x0 + w, y0, z1), P(x0 + w, y0 + d, z0)];
+  if (face === '+y') return [P(x0, y0 + d, z1), P(x0 + w, y0 + d, z1), P(x0, y0 + d, z0)];
+  return [P(x0, y0, z1), P(x0 + w, y0, z1), P(x0, y0 + d, z1)];
+}
+function withFace(face, box, fn) {
+  const [o, u, v] = faceBasis(face, ...box);
+  ctx.save(); ctx.transform(u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]); fn(); ctx.restore();
+}
+function box(x0, y0, z0, w, d, h, col, decal) {
+  const z1 = z0 + h;
+  const a = P(x0, y0, z1), b = P(x0 + w, y0, z1), c = P(x0 + w, y0 + d, z1), e = P(x0, y0 + d, z1);
+  const b0 = P(x0 + w, y0, z0), c0 = P(x0 + w, y0 + d, z0), e0 = P(x0, y0 + d, z0);
+  const bx = [x0, y0, z0, w, d, h];
+  poly([b, c, c0, b0], shade(col, -0.2)); if (decal) withFace('+x', bx, () => decal('+x'));
+  poly([e, c, c0, e0], shade(col, -0.07)); if (decal) withFace('+y', bx, () => decal('+y'));
+  poly([a, b, c, e], shade(col, 0.16)); if (decal) withFace('top', bx, () => decal('top'));
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(e[0], e[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(c0[0], c0[1]); ctx.stroke();
+}
+function cyl(cx, cy, z, r, h, col) {
+  const [x, y] = P(cx, cy, z), [, yt] = P(cx, cy, z + h), rx = r * TW * 0.707, ry = r * TH * 0.707;
+  ctx.fillStyle = shade(col, -0.12);
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI); ctx.lineTo(x - rx, yt); ctx.ellipse(x, yt, rx, ry, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(col, 0.2); ctx.beginPath(); ctx.ellipse(x, yt, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+}
+function dome(cx, cy, z, r, col) {
+  const [x, y] = P(cx, cy, z), rx = r * TW * 0.707, ry = r * TH * 0.707;
+  const g = ctx.createRadialGradient(x - rx * 0.35, y - rx * 0.7, rx * 0.1, x, y - rx * 0.3, rx * 1.1);
+  g.addColorStop(0, shade(col, 0.5)); g.addColorStop(1, shade(col, -0.12));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI); ctx.ellipse(x, y, rx, rx * 0.95, 0, Math.PI, 0); ctx.fill();
+}
+function gear(cx, cy, r, col, teeth = 8) {
+  ctx.beginPath();
+  for (let i = 0; i < teeth; i++) {
+    const a = (i / teeth) * Math.PI * 2, s = Math.PI / teeth;
+    [[a - s * 0.95, r * 0.78], [a - s * 0.45, r], [a + s * 0.45, r], [a + s * 0.95, r * 0.78]].forEach(([aa, rr], k) => {
+      const px = cx + Math.cos(aa) * rr, py = cy + Math.sin(aa) * rr; (i === 0 && k === 0) ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+  }
+  ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2); ctx.fillStyle = shade(col, -0.25); ctx.fill();
+}
+function eyes(scan, blink) {
+  const sy = blink ? 0.15 : 1;
+  [[0.3, 0.46], [0.7, 0.46]].forEach(([x, y]) => {
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(x, y, 0.14, 0.14 * sy, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = scan ? '#3fd0ff' : '#2b2e57'; ctx.beginPath(); ctx.ellipse(x, y + 0.01, 0.075, 0.075 * sy, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.fillStyle = 'rgba(244,159,180,.6)';
+  ctx.beginPath(); ctx.ellipse(0.5, 0.78, 0.12, 0.04, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/* items */
+function drawItem(it, cx, cy, z, s = 1) {
+  if (it.kind === 'brick') {
+    const c = COL[it.color].base, w = 0.32 * s, h = 0.18 * s;
+    box(cx - w / 2, cy - w / 2, z, w, w, h, c);
+    cyl(cx, cy, z + h, 0.075 * s, 0.06 * s, c);
+  } else if (it.kind === 'head') {
+    const w = 0.28 * s;
+    box(cx - w / 2, cy - w / 2, z, w, w, w, '#f6efe0', (f) => { if (f !== 'top') eyes(false, false); });
+    cyl(cx, cy, z + w, 0.06 * s, 0.05 * s, '#f6efe0');
+  } else if (it.kind === 'body') {
+    const w = 0.3 * s;
+    box(cx - w / 2, cy - w / 2, z, w, w, w * 0.95, '#93bcf5', (f) => { if (f !== 'top') gear(0.5, 0.5, 0.3, '#fbdc85'); });
+  } else if (it.kind === 'battery') {
+    const w = 0.2 * s;
+    box(cx - w / 2, cy - w / 2, z, w, w, 0.3 * s, '#fbdc85', (f) => {
+      if (f === 'top') return; ctx.fillStyle = '#b98b2e'; ctx.fillRect(0.42, 0.3, 0.16, 0.4); ctx.fillRect(0.3, 0.42, 0.4, 0.16);
+    });
+    cyl(cx, cy, z + 0.3 * s, 0.05 * s, 0.05 * s, '#c9cbe0');
+  }
+}
+
+/* robot */
+function drawRobot(r, s = 1, bodyCol = '#9dbff5', alpha = 1, now = 0) {
+  const cx = r.x + 0.5, cy = r.y + 0.5, z0 = (r.z || 0) + (r.hop || 0);
+  const [fx, fy] = DIRS[r.dir], px = -fy, py = fx;
+  const parts = [];
+  const add = (ox, oy, z, w, h, col, decal, extra) => parts.push({ x: cx + ox - w / 2, y: cy + oy - w / 2, z: z0 + z, w, h, col, decal, extra, key: cx + ox + cy + oy });
+  const walking = r.walk > 0;
+  [-1, 1].forEach((side) => {
+    const lift = walking ? Math.max(0, Math.sin(r.walk * 2 + (side > 0 ? Math.PI : 0))) * 0.07 * s : 0;
+    add(px * side * 0.1 * s, py * side * 0.1 * s, lift, 0.13 * s, 0.25 * s, '#b4bde6');
+  });
+  const faceX = r.dir === 0, faceY = r.dir === 1;
+  add(0, 0, 0.25 * s, 0.42 * s, 0.38 * s, bodyCol, (f) => {
+    if ((f === '+x' && faceX) || (f === '+y' && faceY)) { gear(0.5, 0.5, 0.3, '#fbdc85'); }
+    else if (f !== 'top') { ctx.fillStyle = shade(bodyCol, -0.15); for (let i = 0; i < 3; i++) ctx.fillRect(0.25, 0.3 + i * 0.15, 0.5, 0.06); }
+  });
+  const carry = r.hand ? 0.55 : 0, arm = Math.max(carry, r.arm || 0);
+  [-1, 1].forEach((side) => add(px * side * 0.27 * s + fx * arm * 0.13 * s, py * side * 0.27 * s + fy * arm * 0.13 * s, (0.33 + arm * 0.1) * s, 0.1 * s, 0.28 * s, '#b4bde6'));
+  const blink = ((now / 1000 + (r.x * 0.37)) % 3.7) < 0.12;
+  add(0, 0, 0.64 * s, 0.36 * s, 0.34 * s, '#f6efe0', (f) => {
+    if ((f === '+x' && faceX) || (f === '+y' && faceY)) eyes(r.scan > 0.1, blink);
+  }, 'head');
+  parts.sort((a, b) => (a.key - b.key) || (a.z - b.z));
+  ctx.save(); ctx.globalAlpha = alpha;
+  // soft shadow + facing chevron
+  const [sx, sy] = P(cx, cy, 0);
+  ctx.fillStyle = 'rgba(80,70,140,.16)'; ctx.beginPath(); ctx.ellipse(sx, sy, TW * 0.24 * s, TH * 0.24 * s, 0, 0, Math.PI * 2); ctx.fill();
+  if (s === 1) {
+    const tip = P(cx + fx * 0.46, cy + fy * 0.46, 0.01), l = P(cx + fx * 0.32 + px * 0.1, cy + fy * 0.32 + py * 0.1, 0.01), rr = P(cx + fx * 0.32 - px * 0.1, cy + fy * 0.32 - py * 0.1, 0.01);
+    poly([tip, l, rr], 'rgba(255,143,179,.85)');
+  }
+  const itemFront = r.hand && (r.dir === 0 || r.dir === 1);
+  const drawHeld = () => r.hand && drawItem(r.hand, cx + fx * 0.3 * s, cy + fy * 0.3 * s, z0 + 0.42 * s, 0.9 * s);
+  if (r.hand && !itemFront) drawHeld();
+  for (const p of parts) {
+    box(p.x, p.y, p.z, p.w, p.w, p.h, p.col, p.decal);
+    if (p.extra === 'head') { cyl(cx, cy, p.z + p.h, 0.06 * s, 0.06 * s, '#f6efe0'); }
+  }
+  if (r.hand && itemFront) drawHeld();
+  ctx.restore();
+  if (r.scan > 0.05 && r.hand) {
+    const [ex, ey] = P(cx + fx * 0.2, cy + fy * 0.2, z0 + 0.82 * s), [ix, iy] = P(cx + fx * 0.3, cy + fy * 0.3, z0 + 0.5 * s);
+    ctx.save(); ctx.globalAlpha = r.scan; ctx.strokeStyle = '#3fd0ff'; ctx.lineWidth = 3; ctx.shadowColor = '#3fd0ff'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ix, iy); ctx.stroke(); ctx.restore();
+  }
+}
+
+/* stations */
+function drawStation(s, now) {
+  const x = s.x, y = s.y, bnc = s.bounce || 0;
+  switch (s.type) {
+    case 'bin': {
+      const col = s.accept ? COL[s.accept].base : '#c6d3f6', h = 0.5 + bnc * 0.06;
+      box(x + 0.13, y + 0.13, 0, 0.74, 0.74, h, col, (f) => {
+        if (f === 'top') { ctx.fillStyle = shade(col, -0.35); ctx.fillRect(0.1, 0.1, 0.8, 0.8); }
+        else { ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(0.15, 0.32, 0.7, 0.12); }
+      });
+      const shown = s.items.slice(-3);
+      shown.forEach((it, i) => drawItem(it, x + 0.36 + i * 0.14, y + 0.4 + (i % 2) * 0.18, h - 0.14, 0.8));
+      label(x + 0.5, y + 0.5, h + 0.45, String(s.items.length), s.accept ? COL[s.accept].base : '#c6d3f6', s.accept ? `"${s.accept}"` : null);
+      break;
+    }
+    case 'pallet':
+      box(x + 0.12, y + 0.12, 0, 0.76, 0.76, 0.14, '#f2d3b0', (f) => { if (f !== 'top') { ctx.fillStyle = 'rgba(120,80,40,.18)'; ctx.fillRect(0.2, 0, 0.12, 1); ctx.fillRect(0.68, 0, 0.12, 1); } });
+      s.items.forEach((it) => drawItem(it, x + 0.5, y + 0.5, 0.14, 1.1));
+      break;
+    case 'shelf': {
+      box(x + 0.14, y + 0.14, 0, 0.72, 0.72, 0.42, '#d6c9f4', (f) => { if (f !== 'top') { ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(0.12, 0.45, 0.76, 0.08); } });
+      drawItem({ kind: s.part }, x + 0.5, y + 0.5, 0.42, 1.15);
+      label(x + 0.5, y + 0.5, 1.12, PART_KK[s.part], '#d6c9f4');
+      break;
+    }
+    case 'table': {
+      const legs = ['#f6a9c0', '#fbd98a', '#a6e3c7', '#9fc4f7'];
+      [[0.16, 0.16], [0.72, 0.16], [0.16, 0.72], [0.72, 0.72]].forEach(([a, b], i) => box(x + a, y + b, 0, 0.12, 0.12, 0.42, legs[i]));
+      const lift = bnc * 0.05;
+      box(x + 0.08, y + 0.08, 0.42 + lift, 0.84, 0.84, 0.1, '#f8f1ff');
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) cyl(x + 0.25 + i * 0.25, y + 0.25 + j * 0.25, 0.52 + lift, 0.05, 0.03, '#f8f1ff');
+      const pos = { head: [0.3, 0.3], body: [0.68, 0.38], battery: [0.38, 0.7] };
+      s.items.forEach((it) => drawItem(it, x + pos[it.kind][0], y + pos[it.kind][1], 0.55 + lift, 0.9));
+      if (world.flash > 0) { const [fx, fy] = P(x + 0.5, y + 0.5, 0.9); ctx.save(); ctx.globalAlpha = world.flash; const g = ctx.createRadialGradient(fx, fy, 0, fx, fy, TW); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(fx - TW, fy - TW, TW * 2, TW * 2); ctx.restore(); }
+      break;
+    }
+    case 'machine': {
+      const c = world.conv, first = c.path[0], dx = first[0] - x, dy = first[1] - y, col = '#cdbaf3';
+      box(x + 0.06, y + 0.06, 0, 0.88, 0.88, 1.15, col, (f) => {
+        if ((f === '+x' && dx === 1) || (f === '+y' && dy === 1) || (f === '+x' && dx === -1 && false)) {
+          ctx.fillStyle = '#fbe39a'; ctx.fillRect(0.14, 0.32, 0.72, 0.68); ctx.fillStyle = '#8d78c9'; ctx.fillRect(0.24, 0.42, 0.52, 0.58);
+        } else if (f !== 'top') {
+          gear(0.5, 0.42, 0.24, '#fbdc85', 9);
+          ctx.fillStyle = c.blink > 0.5 ? '#ff8fb3' : '#9fe0c3'; ctx.beginPath(); ctx.arc(0.5, 0.82, 0.07, 0, Math.PI * 2); ctx.fill();
+        }
+      });
+      box(x + 0.2, y + 0.2, 1.15, 0.6, 0.6, 0.1, '#f6c4d3');
+      dome(x + 0.5, y + 0.5, 1.25, 0.24, '#fbe39a');
+      label(x + 0.5, y + 0.5, 2.0, c.hidden ? '?' : String(c.queue.length), '#cdbaf3', 'қалды');
+      break;
+    }
+    case 'door': {
+      const col = '#f6b8cb';
+      box(x + 0.3, y + 0.05, 0, 0.4, 0.17, 1.15, col);
+      const [gx, gy] = P(x + 0.5, y + 0.5, 0.55);
+      ctx.save(); const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, TW * 0.55); g.addColorStop(0, 'rgba(120,220,255,.75)'); g.addColorStop(1, 'rgba(120,220,255,0)');
+      ctx.fillStyle = g; poly([P(x + 0.5, y + 0.22, 0), P(x + 0.5, y + 0.78, 0), P(x + 0.5, y + 0.78, 1.0), P(x + 0.5, y + 0.22, 1.0)], g); ctx.restore();
+      box(x + 0.3, y + 0.78, 0, 0.4, 0.17, 1.15, col);
+      box(x + 0.25, y + 0.05, 1.15, 0.5, 0.9, 0.2, '#f9cbd9');
+      cyl(x + 0.5, y + 0.5, 1.35, 0.12, 0.08, '#a6e3c7');
+      break;
+    }
+    case 'decor': drawDecor(s); break;
+  }
+}
+function drawDecor(s) {
+  const { x, y } = s;
+  if (s.kind === 'stack') {
+    const cols = [['#f6a9c0', '#fbd98a', '#a9c7f6'], ['#a6e3c7', '#cdbaf3', '#fbd98a'], ['#fbd98a', '#f6a9c0', '#a6e3c7'], ['#a9c7f6', '#a6e3c7', '#f6a9c0']][s.seed % 4];
+    box(x + 0.12, y + 0.18, 0, 0.7, 0.5, 0.3, cols[0]);
+    cyl(x + 0.32, y + 0.43, 0.3, 0.08, 0.06, cols[0]); cyl(x + 0.62, y + 0.43, 0.3, 0.08, 0.06, cols[0]);
+    box(x + 0.22, y + 0.24, 0.3, 0.46, 0.46, 0.28, cols[1]);
+    box(x + 0.3, y + 0.32, 0.58, 0.3, 0.3, 0.22, cols[2]);
+    cyl(x + 0.45, y + 0.47, 0.8, 0.08, 0.06, cols[2]);
+  } else if (s.kind === 'pipe') {
+    cyl(x + 0.5, y + 0.5, 0, 0.26, 0.12, '#cdbaf3');
+    cyl(x + 0.5, y + 0.5, 0.12, 0.17, 1.7, '#d9ccf7');
+    cyl(x + 0.5, y + 0.5, 0.9, 0.22, 0.1, '#cdbaf3');
+  } else if (s.kind === 'gearbox') {
+    box(x + 0.1, y + 0.1, 0, 0.8, 0.8, 0.8, '#fbe39a', (f) => { if (f !== 'top') gear(0.5, 0.5, 0.3, '#a9c7f6', 10); });
+    box(x + 0.25, y + 0.25, 0.8, 0.5, 0.5, 0.25, '#f6a9c0');
+  }
+}
+function label(cx, cy, z, text, col, sub) {
+  const [x, y] = P(cx, cy, z);
+  ctx.font = `800 ${Math.max(11, TW * 0.2)}px Nunito, system-ui, sans-serif`;
+  const tw = ctx.measureText(text).width; let sw = 0;
+  if (sub) { ctx.font = `700 ${Math.max(9, TW * 0.14)}px Nunito, system-ui, sans-serif`; sw = ctx.measureText(sub).width + 6; }
+  const w = tw + sw + 16, h = Math.max(18, TW * 0.3);
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x - w / 2 + 7, y, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2b2e57'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.font = `800 ${Math.max(11, TW * 0.2)}px Nunito, system-ui, sans-serif`; ctx.fillText(text, x - w / 2 + 12, y + 1);
+  if (sub) { ctx.fillStyle = '#6c7099'; ctx.font = `700 ${Math.max(9, TW * 0.14)}px Nunito, system-ui, sans-serif`; ctx.fillText(sub, x - w / 2 + 12 + tw + 5, y + 1); }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function convPos(c, pos) {
+  const path = c.path;
+  if (pos < 0) { const t = pos + 1, m = c.machine; return [m.x + (path[0][0] - m.x) * t + 0.5, m.y + (path[0][1] - m.y) * t + 0.5]; }
+  const i = Math.min(path.length - 1, Math.floor(pos)), f = pos - i, a = path[i], b = path[Math.min(path.length - 1, i + 1)];
+  return [a[0] + (b[0] - a[0]) * f + 0.5, a[1] + (b[1] - a[1]) * f + 0.5];
+}
+function drawConveyorTile(c, i) {
+  const [x, y] = c.path[i];
+  const nb = c.path[i + 1] || c.path[i - 1] && [2 * x - c.path[i - 1][0], 2 * y - c.path[i - 1][1]];
+  const prev = i === 0 ? [c.machine.x, c.machine.y] : c.path[i - 1];
+  const dx = x - prev[0], dy = y - prev[1];
+  const alongX = dx !== 0;
+  const legC = i % 2 ? '#fbd98a' : '#f6a9c0';
+  box(x + 0.4, y + 0.4, 0, 0.2, 0.2, 0.2, legC);
+  const bx = alongX ? [x, y + 0.14, 0.2, 1, 0.72, 0.14] : [x + 0.14, y, 0.2, 0.72, 1, 0.14];
+  box(...bx, '#c9cdf1', (f) => {
+    if (f === 'top') {
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 0.05;
+      const dir = alongX ? dx : dy, off = ((world.belt * dir) % 1 + 1) % 1;
+      for (let k = 0; k < 6; k++) {
+        const u = ((k / 6) + off / 6) % 1;
+        ctx.beginPath(); if (alongX) { ctx.moveTo(u, 0.08); ctx.lineTo(u, 0.92); } else { ctx.moveTo(0.08, u); ctx.lineTo(0.92, u); } ctx.stroke();
+      }
+    } else { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(0, 0.2, 1, 0.2); }
+  });
+  void nb;
+  if (i === c.path.length - 1) {
+    const [ex, ey] = P(x + 0.5, y + 0.5, 0.34);
+    ctx.save(); ctx.strokeStyle = 'rgba(255,143,179,.8)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(ex, ey, TW * 0.28, TH * 0.28, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+}
+
+function drawFloor() {
+  const W = world.W, H = world.H;
+  // walls
+  box(0, -0.22, -0.35, W, 0.22, WALL + 0.35, '#dfe3fb', (f) => {
+    if (f !== '+y') return;
+    const fw = W; ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(0, 0.7, 1, 0.012);
+    const ax = 0.62, aw = 1.4 / fw;
+    ctx.fillStyle = '#e9e1fb'; ctx.fillRect(ax, 0.38, aw, 0.62); ctx.beginPath(); ctx.ellipse(ax + aw / 2, 0.38, aw / 2, 0.18, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#d4c8f6'; ctx.fillRect(ax + aw * 0.18, 0.5, aw * 0.64, 0.5); ctx.beginPath(); ctx.ellipse(ax + aw / 2, 0.5, aw * 0.32, 0.12, 0, Math.PI, 0); ctx.fill();
+    ctx.restore();
+  });
+  box(-0.22, 0, -0.35, 0.22, H, WALL + 0.35, '#e6e3fb', (f) => {
+    if (f !== '+x') return;
+    ctx.save(); ctx.strokeStyle = 'rgba(140,220,255,.95)'; ctx.lineWidth = 0.02; ctx.shadowColor = '#7fdcff'; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.ellipse(0.62, 0.35, 0.16, 0.2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  });
+  // platform
+  box(0, 0, -0.35, W, H, 0.35, '#e3e7fb');
+  for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) {
+    poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], (x + y) % 2 ? '#eef0fd' : '#e8ebfb', 'rgba(255,255,255,.7)', 1);
+  }
+  // neon floor strips
+  ctx.save(); ctx.lineCap = 'round';
+  const neon = (pts, col) => { ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.lineWidth = 3; ctx.beginPath(); pts.forEach((p, i) => { const q = P(p[0], p[1], 0.005); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); };
+  neon([[0.15, H - 0.15], [W - 0.15, H - 0.15], [W - 0.15, 0.15]], 'rgba(255,150,200,.9)');
+  neon([[0.15, 0.15], [W - 0.6, 0.15]], 'rgba(130,215,255,.8)');
+  ctx.restore();
+  // front-cell marker
+  if (run.active || true) {
+    const f = front(), r = world.robot;
+    if (Number.isInteger(r.x) && Number.isInteger(r.y) && f.x >= 0 && f.y >= 0 && f.x < W && f.y < H) {
+      ctx.save(); ctx.setLineDash([5, 5]); ctx.lineDashOffset = -world.t * 12;
+      poly([P(f.x + 0.06, f.y + 0.06, 0.01), P(f.x + 0.94, f.y + 0.06, 0.01), P(f.x + 0.94, f.y + 0.94, 0.01), P(f.x + 0.06, f.y + 0.94, 0.01)], 'rgba(255,143,179,.08)', 'rgba(255,143,179,.7)', 1.5);
+      ctx.restore();
+    }
+  }
+}
+
+function draw(now) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, CW, CH);
+  drawFloor();
+  const list = [];
+  for (const s of world.stations) list.push({ k: s.x + s.y + 1, f: () => drawStation(s, now) });
+  const c = world.conv;
+  if (c) {
+    c.path.forEach((p, i) => list.push({ k: p[0] + p[1] + 0.98, f: () => drawConveyorTile(c, i) }));
+    const e = c.path[c.path.length - 1];
+    if (c.end) list.push({ k: e[0] + e[1] + 1.02, f: () => drawItem(c.end, e[0] + 0.5, e[1] + 0.5, 0.34) });
+    if (c.moving) { const [mx, my] = convPos(c, c.moving.pos); list.push({ k: mx + my + 0.02, f: () => drawItem(c.moving.item, mx, my, 0.34) }); }
+  }
+  const r = world.robot;
+  list.push({ k: r.x + r.y + 1.01, f: () => drawRobot(r, 1, '#9dbff5', 1, now) });
+  for (const m of world.minis) list.push({ k: m.x + m.y + 1.03, f: () => drawRobot(m, 0.6, m.color, m.alpha, now) });
+  list.sort((a, b) => a.k - b.k).forEach((d) => d.f());
+  for (const fl of world.flying) drawItem(fl.item, fl.x, fl.y, fl.z);
+  // particles
+  for (const p of world.particles) { const [x, y] = P(p.x, p.y, p.z); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  for (const f of world.floats) {
+    const [x, y] = P(f.x, f.y, f.z + (1 - f.life) * 0.8);
+    ctx.globalAlpha = Math.min(1, f.life * 2); ctx.font = `800 ${Math.max(13, TW * 0.24)}px Nunito, system-ui, sans-serif`; ctx.textAlign = 'center';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.strokeText(f.text, x, y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, y);
+  }
+  ctx.globalAlpha = 1;
+  // bubble
+  const b = r.bubble;
+  if (r.alert > 0.01 || (b && now < b.until)) {
+    const [x, y] = P(r.x + 0.5, r.y + 0.5, 1.25 + r.hop);
+    const text = r.alert > 0.01 ? '!' : b.text;
+    ctx.font = `800 ${Math.max(13, TW * 0.22)}px Nunito, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = Math.max(30, ctx.measureText(text).width + 20), h = Math.max(26, TW * 0.4);
+    ctx.fillStyle = r.alert > 0.01 ? '#e2546f' : '#fff';
+    roundRect(x - w / 2, y - h - 8, w, h, 10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 6, y - 9); ctx.lineTo(x + 6, y - 9); ctx.lineTo(x, y); ctx.fill();
+    ctx.fillStyle = r.alert > 0.01 ? '#fff' : '#2b2e57'; ctx.fillText(text, x, y - h / 2 - 7);
+  }
+  // confetti
+  for (const p of world.confetti) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-4, -2.5, 8, 5); ctx.restore(); }
+}
+function update(dt) {
+  const s = dt / 1000;
+  const w = world;
+  w.t += s;
+  if (w.conv) { if (w.conv.moving) w.belt += s * 4.2 * SPEED; w.conv.blink = Math.max(0, w.conv.blink - s * 2); }
+  for (const st of w.stations) st.bounce = Math.max(0, (st.bounce || 0) - s * 4);
+  w.robot.alert = run.active || w.robot.alert < 0.5 ? Math.max(0, w.robot.alert - s * 0.25) : w.robot.alert;
+  for (let i = w.particles.length - 1; i >= 0; i--) { const p = w.particles[i]; p.x += p.vx * s * 0.4; p.y += p.vy * s * 0.4; p.z += p.vz * s; p.vz -= 6 * s; p.life -= s * 1.4; if (p.life <= 0 || p.z < 0) w.particles.splice(i, 1); }
+  for (let i = w.floats.length - 1; i >= 0; i--) { w.floats[i].life -= s * 0.9; if (w.floats[i].life <= 0) w.floats.splice(i, 1); }
+  for (let i = w.confetti.length - 1; i >= 0; i--) { const p = w.confetti[i]; p.x += p.vx * s; p.y += p.vy * s; p.vy += 260 * s; p.a += p.va * s; if (p.y > CH + 20) w.confetti.splice(i, 1); }
+}
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(50, now - lastT); lastT = now;
+  stepTweens(dt);
+  if (world) { update(dt); try { draw(now); } catch (e) { console.error(e); } }
+  hudTick();
+  requestAnimationFrame(frame);
+}
+function confetti() {
+  const cols = ['#ff8fb3', '#62cdef', '#fbdc85', '#86d9b3', '#b9a3ef'];
+  for (let i = 0; i < 90; i++) world.confetti.push({ x: CW / 2 + (Math.random() - 0.5) * 120, y: CH * 0.35, vx: (Math.random() - 0.5) * 520, vy: -200 - Math.random() * 320, a: Math.random() * 6, va: (Math.random() - 0.5) * 12, c: cols[i % cols.length] });
+}
+
+/* ================= editor ================= */
+const ta = $('#code'), hl = $('#hl'), gutter = $('#gutter'), lnmark = $('#lnmark');
+const ROBOT_FN = new Set(Object.keys(CMD_DOC));
+const PY_BI = new Set(['print', 'range', 'len', 'str', 'int', 'abs', 'min', 'max', 'say']);
+const KWS = new Set(['if', 'elif', 'else', 'while', 'for', 'in', 'def', 'return', 'break', 'continue', 'pass', 'and', 'or', 'not', 'global']);
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function highlight(src) {
+  const re = /(#.*$)|("(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_À-￿][\wÀ-￿]*)|([\s\S])/gm;
+  return src.replace(re, (m, com, str, num, name) => {
+    if (com) return `<span class="t-com">${esc(com)}</span>`;
+    if (str) return `<span class="t-str">${esc(str)}</span>`;
+    if (num) return `<span class="t-num">${num}</span>`;
+    if (name) {
+      if (KWS.has(name)) return `<span class="t-kw">${name}</span>`;
+      if (name === 'True' || name === 'False' || name === 'None') return `<span class="t-con">${name}</span>`;
+      if (ROBOT_FN.has(name)) return `<span class="t-fn">${name}</span>`;
+      if (PY_BI.has(name)) return `<span class="t-bi">${name}</span>`;
+      return esc(name);
+    }
+    return esc(m);
+  });
+}
+let markLine = null, markBad = false;
+function refreshEditor() {
+  hl.innerHTML = highlight(ta.value) + '\n ';
+  const n = ta.value.split('\n').length;
+  let h = ''; for (let i = 1; i <= n; i++) h += `<div class="${i === markLine ? (markBad ? 'bad' : 'cur') : ''}">${i}</div>`;
+  gutter.innerHTML = h; syncScroll();
+}
+function syncScroll() {
+  hl.parentElement.style.transform = `translate(${-ta.scrollLeft}px,${-ta.scrollTop}px)`;
+  gutter.style.transform = `translateY(${-ta.scrollTop}px)`;
+  if (markLine) { lnmark.style.display = 'block'; lnmark.style.top = (12 + (markLine - 1) * 22 - ta.scrollTop) + 'px'; } else lnmark.style.display = 'none';
+}
+function setMark(line, bad = false) {
+  if (line === markLine && bad === markBad) return;
+  markLine = line; markBad = bad; lnmark.classList.toggle('bad', bad);
+  [...gutter.children].forEach((d, i) => { d.className = i + 1 === line ? (bad ? 'bad' : 'cur') : ''; });
+  syncScroll();
+  if (line && !bad && run.active) {
+    const top = 12 + (line - 1) * 22;
+    if (top < ta.scrollTop || top > ta.scrollTop + ta.clientHeight - 40) ta.scrollTop = top - ta.clientHeight / 2;
+  }
+}
+function insertText(t) {
+  ta.focus();
+  if (!document.execCommand || !document.execCommand('insertText', false, t)) ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end');
+}
+ta.addEventListener('input', () => { save.code[levelIndex] = ta.value; persist(); if (!run.active) setMark(null); refreshEditor(); });
+ta.addEventListener('scroll', syncScroll);
+ta.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      const s = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+      const m = ta.value.slice(s).match(/^ {1,4}/);
+      if (m) { const pos = ta.selectionStart; ta.setSelectionRange(s, s + m[0].length); insertText(''); ta.setSelectionRange(Math.max(s, pos - m[0].length), Math.max(s, pos - m[0].length)); }
+    } else insertText('    ');
+  } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    const s = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+    const line = ta.value.slice(s, ta.selectionStart);
+    let ind = line.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(line)) ind += '    ';
+    insertText('\n' + ind);
+  } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); startRun(); }
+});
+
+/* ================= blocks ================= */
+const BDEF = {
+  forward: { cat: 'move', text: 'алға жүр', num: { key: 'n', def: 1, min: 1, max: 9 }, after: 'қадам', py: (b) => `forward(${b.n})` },
+  turn_left: { cat: 'move', text: 'солға бұрыл', py: () => 'turn_left()' },
+  turn_right: { cat: 'move', text: 'оңға бұрыл', py: () => 'turn_right()' },
+  pick: { cat: 'act', text: 'затты ал', py: () => 'pick()' },
+  drop: { cat: 'act', text: 'затты қой', py: () => 'drop()' },
+  conveyor: { cat: 'act', text: 'конвейерді қос', py: () => 'conveyor()' },
+  assemble: { cat: 'act', text: 'роботты құрастыр', py: () => 'assemble()' },
+  repeat: { cat: 'ctrl', text: 'қайтала', num: { key: 'n', def: 5, min: 1, max: 20 }, after: 'рет', slots: ['body'] },
+  while_items: { cat: 'ctrl', text: 'конвейерде зат бар кезде қайтала', slots: ['body'] },
+  if_color: { cat: 'ctrl', text: 'егер зат түсі', color: true, after: 'болса', slots: ['body', 'else'] },
+  def: { cat: 'func', text: 'функция', name: true, slots: ['body'] },
+  call: { cat: 'func', text: 'шақыр:', callName: true },
+  set_count: { cat: 'var', text: 'count = 0', py: () => 'count = 0' },
+  inc_count: { cat: 'var', text: 'count-ты 1-ге арттыр', py: () => 'count += 1' },
+  report: { cat: 'var', text: 'есеп бер: count', py: () => 'report(count)' },
+};
+const CAT_KK = { move: 'Қозғалыс', act: 'Әрекет', ctrl: 'Басқару', func: 'Функция', var: 'Айнымалы' };
+let prog = [], activeSlot = 'root', bseq = 1;
+const ws = $('#workspace'), dropLine = $('#dropLine');
+
+function newBlock(type) {
+  const d = BDEF[type], b = { id: 'b' + bseq++, type };
+  if (d.num) b[d.num.key] = d.num.def;
+  if (d.color) b.color = 'red';
+  if (d.name) b.name = 'build';
+  if (d.callName) b.name = (allDefs()[0] || 'build');
+  (d.slots || []).forEach((s) => (b[s] = []));
+  return b;
+}
+function allDefs(arr = prog, out = []) { for (const b of arr) { if (b.type === 'def') out.push(b.name); (BDEF[b.type].slots || []).forEach((s) => allDefs(b[s], out)); } return out; }
+function findBlock(id, arr = prog, parent = null) {
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i].id === id) return { arr, i, b: arr[i] };
+    for (const s of BDEF[arr[i].type].slots || []) { const r = findBlock(id, arr[i][s]); if (r) return r; }
+  }
+  return null;
+}
+function slotArr(slotId) { if (slotId === 'root') return prog; const [id, key] = slotId.split(':'); const f = findBlock(id); return f ? f.b[key] : prog; }
+function contains(b, id) { if (b.id === id) return true; return (BDEF[b.type].slots || []).some((s) => b[s].some((c) => contains(c, id))); }
+
+function renderPalette() {
+  const pal = $('#palette'); pal.innerHTML = '';
+  let lastCat = null;
+  const types = L.blocks.slice().sort((a, b) => Object.keys(CAT_KK).indexOf(BDEF[a].cat) - Object.keys(CAT_KK).indexOf(BDEF[b].cat));
+  for (const t of types) {
+    const d = BDEF[t];
+    if (d.cat !== lastCat) { const h = document.createElement('h4'); h.textContent = CAT_KK[d.cat]; pal.appendChild(h); lastCat = d.cat; }
+    const el = document.createElement('button'); el.className = 'pb cat-' + d.cat; el.draggable = true;
+    el.textContent = d.text + (d.num ? ` ${d.num.def} ${d.after}` : d.color ? ' … болса' : d.name ? ' …' : '');
+    el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', 'new:' + t); e.dataTransfer.effectAllowed = 'copyMove'; });
+    el.addEventListener('click', () => { slotArr(activeSlot).push(newBlock(t)); blocksChanged(); });
+    pal.appendChild(el);
+  }
+  pal.ondragover = (e) => e.preventDefault();
+  pal.ondrop = (e) => { e.preventDefault(); const d = e.dataTransfer.getData('text/plain'); if (d.startsWith('move:')) { const f = findBlock(d.slice(5)); if (f) { f.arr.splice(f.i, 1); blocksChanged(); } } };
+}
+function renderBlocks() {
+  [...ws.querySelectorAll('.slot')].forEach((n) => n.remove());
+  ws.insertBefore(renderSlot(prog, 'root'), dropLine);
+  updatePreview();
+}
+function renderSlot(arr, slotId) {
+  const el = document.createElement('div'); el.className = 'slot' + (activeSlot === slotId ? ' active' : ''); el.dataset.slot = slotId;
+  arr.forEach((b) => el.appendChild(renderBlock(b)));
+  if (!arr.length) { const h = document.createElement('div'); h.className = 'slot-hint'; h.textContent = slotId === 'root' ? 'Блокты осында сүйре немесе сол жақтан бас' : 'бос: блок қос'; el.appendChild(h); }
+  el.addEventListener('click', (e) => { if (e.target === el || e.target.classList.contains('slot-hint')) { e.stopPropagation(); activeSlot = slotId; renderBlocks(); } });
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const kids = [...el.children].filter((c) => c.classList.contains('blk'));
+    let idx = kids.length; for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { idx = i; break; } }
+    el.dataset.idx = idx;
+    const wr = ws.getBoundingClientRect(), er = el.getBoundingClientRect();
+    const y = idx < kids.length ? kids[idx].getBoundingClientRect().top - 3 : (kids.length ? kids[kids.length - 1].getBoundingClientRect().bottom + 1 : er.top + 4);
+    dropLine.style.display = 'block'; dropLine.style.left = (er.left - wr.left + ws.scrollLeft + 4) + 'px'; dropLine.style.width = (er.width - 8) + 'px'; dropLine.style.top = (y - wr.top + ws.scrollTop) + 'px';
+  });
+  el.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation(); dropLine.style.display = 'none';
+    const data = e.dataTransfer.getData('text/plain'); let idx = +el.dataset.idx || 0;
+    const target = slotArr(slotId);
+    if (data.startsWith('new:')) target.splice(idx, 0, newBlock(data.slice(4)));
+    else if (data.startsWith('move:')) {
+      const f = findBlock(data.slice(5)); if (!f) return;
+      if (slotId !== 'root' && contains(f.b, slotId.split(':')[0])) return;
+      if (f.arr === target && f.i < idx) idx--;
+      f.arr.splice(f.i, 1); target.splice(idx, 0, f.b);
+    }
+    blocksChanged();
+  });
+  return el;
+}
+function renderBlock(b) {
+  const d = BDEF[b.type];
+  const el = document.createElement('div'); el.className = 'blk cat-' + d.cat; el.dataset.id = b.id;
+  const head = document.createElement('div'); head.className = 'blk-head'; head.draggable = true;
+  head.addEventListener('dragstart', (e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', 'move:' + b.id); el.classList.add('dragging'); });
+  head.addEventListener('dragend', () => { el.classList.remove('dragging'); dropLine.style.display = 'none'; });
+  const span = (t) => { const s = document.createElement('span'); s.textContent = t; head.appendChild(s); };
+  span(d.text);
+  if (d.num) {
+    const i = document.createElement('input'); i.type = 'number'; i.min = d.num.min; i.max = d.num.max; i.value = b[d.num.key]; i.setAttribute('aria-label', 'сан');
+    i.addEventListener('input', () => { b[d.num.key] = Math.max(d.num.min, Math.min(d.num.max, parseInt(i.value) || d.num.min)); blocksChanged(false); });
+    head.appendChild(i);
+  }
+  if (d.color) {
+    const s = document.createElement('select'); s.setAttribute('aria-label', 'түс');
+    ['red', 'blue', 'green'].forEach((c) => { const o = document.createElement('option'); o.value = c; o.textContent = `${COL[c].kk} ("${c}")`; s.appendChild(o); });
+    s.value = b.color; s.addEventListener('change', () => { b.color = s.value; blocksChanged(false); }); head.appendChild(s);
+  }
+  if (d.name) {
+    const i = document.createElement('input'); i.type = 'text'; i.value = b.name; i.setAttribute('aria-label', 'функция аты');
+    i.addEventListener('input', () => { b.name = (i.value.replace(/[^A-Za-z0-9_]/g, '') || 'build').replace(/^\d/, '_$&'); blocksChanged(false); });
+    i.addEventListener('change', () => renderBlocks());
+    head.appendChild(i); span('()');
+  }
+  if (d.callName) {
+    const s = document.createElement('select'); s.setAttribute('aria-label', 'функция');
+    const names = [...new Set([...allDefs(), b.name])];
+    names.forEach((n) => { const o = document.createElement('option'); o.value = n; o.textContent = n + '()'; s.appendChild(o); });
+    s.value = b.name; s.addEventListener('change', () => { b.name = s.value; blocksChanged(false); }); head.appendChild(s);
+  }
+  if (d.after) span(d.after);
+  const x = document.createElement('button'); x.className = 'x'; x.textContent = '×'; x.title = 'Өшіру'; x.setAttribute('aria-label', 'Блокты өшіру');
+  x.addEventListener('click', (e) => { e.stopPropagation(); const f = findBlock(b.id); if (f) f.arr.splice(f.i, 1); if (activeSlot.startsWith(b.id + ':')) activeSlot = 'root'; blocksChanged(); });
+  head.appendChild(x);
+  el.appendChild(head);
+  (d.slots || []).forEach((s) => {
+    if (s === 'else') { const eh = document.createElement('div'); eh.className = 'else-head'; eh.textContent = 'әйтпесе'; el.appendChild(eh); }
+    const wrap = document.createElement('div'); wrap.className = 'inner'; wrap.appendChild(renderSlot(b[s], b.id + ':' + s)); el.appendChild(wrap);
+  });
+  return el;
+}
+function compileBlocks() {
+  const lines = [], map = [];
+  const emit = (t, ind, id) => { lines.push('    '.repeat(ind) + t); map.push(id); };
+  const usesInc = (arr) => arr.some((b) => b.type === 'inc_count' || (BDEF[b.type].slots || []).some((s) => usesInc(b[s])));
+  const walk = (arr, ind) => {
+    if (!arr.length) { emit('pass', ind, null); return; }
+    for (const b of arr) {
+      const d = BDEF[b.type];
+      if (b.type === 'repeat') { emit(`for i in range(${b.n}):`, ind, b.id); walk(b.body, ind + 1); }
+      else if (b.type === 'while_items') { emit('while has_items():', ind, b.id); walk(b.body, ind + 1); }
+      else if (b.type === 'if_color') { emit(`if scan() == "${b.color}":`, ind, b.id); walk(b.body, ind + 1); if (b.else.length) { emit('else:', ind, b.id); walk(b.else, ind + 1); } }
+      else if (b.type === 'def') { emit(`def ${b.name}():`, ind, b.id); if (usesInc(b.body)) emit('global count', ind + 1, b.id); walk(b.body, ind + 1); }
+      else if (b.type === 'call') emit(`${b.name}()`, ind, b.id);
+      else emit(d.py(b), ind, b.id);
+    }
+  };
+  const defs = prog.filter((b) => b.type === 'def'), rest = prog.filter((b) => b.type !== 'def');
+  defs.forEach((d) => { walk([d], 0); emit('', 0, null); });
+  if (rest.length) walk(rest, 0);
+  return { code: lines.join('\n'), map };
+}
+function updatePreview() { const c = compileBlocks().code; $('#blkPreview').innerHTML = c.trim() ? highlight(c) : '<span class="t-com"># Блоктар қосылғанда Python коды осында шығады</span>'; }
+function blocksChanged(rerender = true) { save.blocks[levelIndex] = prog; persist(); if (rerender) renderBlocks(); else updatePreview(); }
+let runMap = null;
+function markBlock(line, bad) {
+  ws.querySelectorAll('.blk.running').forEach((n) => n.classList.remove('running'));
+  if (!runMap || !line) return;
+  const id = runMap[line - 1]; if (!id) return;
+  const el = ws.querySelector(`.blk[data-id="${id}"]`);
+  if (el) { el.classList.add('running'); el.style.outlineColor = bad ? 'var(--err)' : ''; }
+}
+ws.addEventListener('dragleave', (e) => { if (!ws.contains(e.relatedTarget)) dropLine.style.display = 'none'; });
+
+/* ================= UI ================= */
+const consoleEl = $('#console');
+function log(kind, text) { const d = document.createElement('div'); d.className = 'c-' + kind; d.textContent = text; consoleEl.appendChild(d); consoleEl.scrollTop = consoleEl.scrollHeight; }
+function consoleClear() { consoleEl.innerHTML = ''; }
+
+const run = { active: false, paused: false, stepOnce: false, cancelled: false, resume: null, line: null, attempts: 0 };
+const mode = () => save.mode;
+function getCode() { if (mode() === 'blk') { const c = compileBlocks(); runMap = c.map; return c.code; } runMap = null; return ta.value; }
+
+function renderNav() {
+  const nav = $('#levelNav'); nav.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement('button'); b.className = 'lv'; b.setAttribute('aria-current', i === levelIndex ? 'true' : 'false');
+    const st = save.stars[i] || 0;
+    b.innerHTML = `<span class="n">${i + 1}</span><span class="s">${[0, 1, 2].map((k) => k < st ? '<em>★</em>' : '★').join('')}</span>`;
+    b.title = `${i + 1}. ${lv.title} — ${lv.topic}`;
+    b.addEventListener('click', () => loadLevel(i));
+    nav.appendChild(b);
+  });
+}
+function starCriteria() { return ['Тапсырманы орында', `Код ${L.par} жолдан аспасын`, L.concept.label]; }
+function loadLevel(i) {
+  stopRun(true);
+  levelIndex = i; L = LEVELS[i]; save.level = i; persist();
+  run.attempts = 0;
+  world = makeWorld(L); layout();
+  $('#lvTitle').innerHTML = `<small>${i + 1}-деңгей · ${L.topic}</small>${L.title}`;
+  $('#lvStory').textContent = L.story;
+  $('#lvGoals').innerHTML = starCriteria().map((c) => `<span>${esc(c)}</span>`).join('');
+  $('#lvHint').hidden = true; $('#lvHint').textContent = L.hint; $('#hintBtn').textContent = 'Кеңес';
+  $('#hudTopic').textContent = L.topic;
+  $('#result').hidden = true;
+  ta.value = save.code[i] != null ? save.code[i] : L.starter;
+  setMark(null); refreshEditor(); ta.scrollTop = 0;
+  prog = save.blocks[i] || [];
+  let mx = 0; (function scan(a) { a.forEach((b) => { mx = Math.max(mx, +b.id.slice(1) || 0); (BDEF[b.type].slots || []).forEach((s) => scan(b[s])); }); })(prog); bseq = mx + 1;
+  activeSlot = 'root';
+  renderPalette(); renderBlocks(); renderNav(); renderRef();
+  consoleClear(); log('info', `${i + 1}-деңгей: ${L.title}. Кодты жаз да, «Іске қосу» батырмасын бас (немесе Ctrl+Enter).`);
+}
+function renderRef() {
+  $('#refList').innerHTML = L.cmds.map((c) => `<dt>${CMD_DOC[c][0]}</dt><dd>${CMD_DOC[c][1]}</dd>`).join('') +
+    '<dt>for i in range(n):</dt><dd>ішіндегі командаларды n рет қайталау</dd>' +
+    '<dt>if … : / elif … : / else:</dt><dd>шарт орындалса ғана жұмыс істейді</dd>' +
+    '<dt>while шарт:</dt><dd>шарт ақиқат болғанша қайталау</dd>' +
+    '<dt>def name():</dt><dd>өз командаңды (функция) жасау</dd>' +
+    '<dt>print(x)</dt><dd>мәтінді консольге шығару</dd>';
+}
+function setMode(m) {
+  save.mode = m; persist();
+  $('#tabPy').setAttribute('aria-selected', m === 'py'); $('#tabBlk').setAttribute('aria-selected', m === 'blk');
+  $('#pyPane').hidden = m !== 'py'; $('#blkPane').hidden = m !== 'blk';
+  if (m === 'py') refreshEditor();
+}
+$('#tabPy').addEventListener('click', () => setMode('py'));
+$('#tabBlk').addEventListener('click', () => setMode('blk'));
+$('#toPython').addEventListener('click', () => {
+  const c = compileBlocks().code; if (!c.trim()) return;
+  ta.value = '# Блоктардан жасалған код\n' + c + '\n'; save.code[levelIndex] = ta.value; persist(); setMode('py'); refreshEditor();
+});
+let clearArmed = false;
+$('#clearBlocks').addEventListener('click', (e) => {
+  if (!clearArmed) { clearArmed = true; e.target.textContent = 'Растау: бәрін өшіру'; setTimeout(() => { clearArmed = false; e.target.textContent = 'Тазалау'; }, 2500); return; }
+  clearArmed = false; e.target.textContent = 'Тазалау'; prog = []; activeSlot = 'root'; blocksChanged();
+});
+$('#hintBtn').addEventListener('click', () => { const h = $('#lvHint'); h.hidden = !h.hidden; $('#hintBtn').textContent = h.hidden ? 'Кеңес' : 'Кеңесті жасыру'; });
+$('#soundBtn').addEventListener('click', () => { save.sound = !save.sound; persist(); syncSound(); });
+function syncSound() { const b = $('#soundBtn'); b.setAttribute('aria-pressed', save.sound); b.textContent = save.sound ? 'Дыбыс: қосулы' : 'Дыбыс: өшірулі'; }
+$('#speed').addEventListener('input', (e) => { SPEED = SPEEDS[+e.target.value]; });
+$('#resAgain').addEventListener('click', () => { $('#result').hidden = true; resetWorld(); });
+$('#resNext').addEventListener('click', () => loadLevel((levelIndex + 1) % LEVELS.length));
+
+let hudState = '';
+function hudTick() {
+  if (!world) return;
+  const p = L.progress(world); const el = $('#hudProgress'); if (el.textContent !== p) el.textContent = p;
+  const st = run.active ? (run.paused ? 'Кідіріс' : 'Жұмыс істеп тұр') : 'Дайын';
+  if (st !== hudState) { hudState = st; $('#hudStateText').textContent = st; $('#hudState').classList.toggle('running', run.active && !run.paused); }
+  if (run.active && run.line) { mode() === 'py' ? setMark(run.line) : markBlock(run.line); }
+}
+function syncButtons() {
+  const rb = $('#runBtn');
+  rb.querySelector('span').textContent = run.active ? (run.paused ? 'Жалғастыру' : 'Кідірту') : 'Іске қосу';
+  rb.querySelector('svg').innerHTML = run.active && !run.paused ? '<path d="M3 2h4v12H3zM9 2h4v12H9z"/>' : '<path d="M4 2l10 6-10 6z"/>';
+  $('#stopBtn').disabled = !run.active && !world.robot.alert && !dirtyWorld();
+}
+function dirtyWorld() { const r = world.robot; return r.x !== L.robot.x || r.y !== L.robot.y || r.dir !== L.robot.dir || !!r.hand || binsTotal(world) > 0 || world.built > 0; }
+function resetWorld() { world = makeWorld(L); layout(); setMark(null); markBlock(null); syncButtons(); }
+
+async function startRun(paused = false) {
+  if (run.active) {
+    run.paused = !run.paused;
+    if (!run.paused && run.resume) { const r = run.resume; run.resume = null; r(); }
+    syncButtons(); return;
+  }
+  $('#result').hidden = true;
+  const code = getCode();
+  resetWorld(); consoleClear();
+  let ast;
+  try { ast = parse(code); } catch (e) { showError(e); return; }
+  if (!ast.length) { log('err', mode() === 'blk' ? 'Бағдарлама бос. Алдымен блок қос!' : 'Бағдарлама бос. Алдымен команда жаз!'); return; }
+  Object.assign(run, { active: true, paused, stepOnce: false, cancelled: false, resume: null, line: null });
+  run.attempts++;
+  if (L.conveyor && ['If', 'While'].some((t) => L.concept.node === t || L.conveyor.hidden)) log('info', 'Кірпіштер түсі мен саны әр іске қосқанда өзгереді.');
+  log('info', 'Бағдарлама іске қосылды…');
+  syncButtons();
+  const interp = new Interp(ast);
+  try {
+    await drive(interp.run());
+    if (!run.cancelled) finish(ast, code);
+  } catch (e) {
+    if (e !== STOP) showError(e);
+  } finally {
+    run.active = false; run.paused = false; run.line = null;
+    if (!markBad) { setMark(null); markBlock(null); }
+    syncButtons();
+  }
+}
+const STOP = { stop: true };
+async function drive(gen) {
+  let send, steps = 0;
+  for (;;) {
+    if (run.cancelled) throw STOP;
+    const r = gen.next(send); send = undefined;
+    if (r.done) return;
+    const v = r.value;
+    if (v.kind === 'line') {
+      if (++steps > 200000) throw new PyError('Бағдарлама тым ұзақ жұмыс істеп тұр. Шексіз цикл болуы мүмкін: шарт қашан жалған болатынын тексер.', v.line);
+      if (steps % 4000 === 0) await new Promise((res) => setTimeout(res));
+      continue;
+    }
+    run.line = v.line;
+    if (run.paused) { syncButtons(); await new Promise((res) => (run.resume = res)); }
+    if (run.cancelled) throw STOP;
+    try { send = await ACT[v.name](...v.args); }
+    catch (e) { if (e instanceof RobotError) e.line = v.line; throw e; }
+    if (run.stepOnce) { run.stepOnce = false; run.paused = true; syncButtons(); }
+  }
+}
+function stopRun(silent) {
+  if (run.active) { run.cancelled = true; if (run.resume) { const r = run.resume; run.resume = null; r(); } flushTweens(); if (!silent) log('info', 'Тоқтатылды.'); }
+}
+$('#runBtn').addEventListener('click', () => startRun());
+$('#stepBtn').addEventListener('click', () => {
+  if (!run.active) { startRun(true).catch(() => {}); setTimeout(() => { run.stepOnce = true; run.paused = false; if (run.resume) { const r = run.resume; run.resume = null; r(); } }, 0); return; }
+  run.stepOnce = true; run.paused = false; if (run.resume) { const r = run.resume; run.resume = null; r(); } syncButtons();
+});
+$('#stopBtn').addEventListener('click', () => { stopRun(); setTimeout(() => { resetWorld(); $('#result').hidden = true; }, 0); });
+
+function showError(e) {
+  if (!(e instanceof PyError) && !(e instanceof RobotError)) { console.error(e); log('err', 'Күтпеген қате: ' + (e && e.message)); return; }
+  const line = e.line;
+  log('err', (line ? `${line}-жол: ` : '') + e.message);
+  if (e instanceof PyError) { world.robot.alert = 1; SFX.err(); }
+  if (line) { mode() === 'py' ? setMark(line, true) : markBlock(line, true); if (mode() === 'py') { const top = 12 + (line - 1) * 22; ta.scrollTop = Math.max(0, top - ta.clientHeight / 2); } }
+}
+function finish(ast, code) {
+  const res = L.check(world);
+  if (!res.ok) { log('err', res.msg); world.robot.alert = 1; SFX.err(); return; }
+  const lines = countLines(code);
+  const s2 = lines <= L.par;
+  const s3 = L.concept.firstTry ? run.attempts === 1 : astHas(ast, L.concept.node);
+  const stars = 1 + (s2 ? 1 : 0) + (s3 ? 1 : 0);
+  save.stars[levelIndex] = Math.max(save.stars[levelIndex] || 0, stars); persist(); renderNav();
+  log('ok', `Тамаша! Деңгей өтілді. Жол саны: ${lines}.`);
+  bubble('Жасадық!', 2000); SFX.win(); confetti();
+  $('#resStars').innerHTML = [0, 1, 2].map((k) => `<span class="${k < stars ? 'on' : ''}">★</span>`).join('');
+  const crit = starCriteria(); const ok = [true, s2, s3];
+  $('#resCrit').innerHTML = crit.map((c, k) => `<li class="${ok[k] ? 'on' : ''}">${esc(c)}${k === 1 ? ` (сенде ${lines})` : ''}</li>`).join('');
+  $('#resNext').textContent = levelIndex === LEVELS.length - 1 ? 'Бірінші деңгейге →' : 'Келесі деңгей →';
+  $('#resTitle').textContent = stars === 3 ? 'Мінсіз инженер!' : 'Деңгей өтілді!';
+  setTimeout(() => { $('#result').hidden = false; }, 700 / Math.min(SPEED, 2));
+}
+
+/* test hook for automated checks */
+window.CodeFactory = { LEVELS, loadLevel, startRun, setSpeed: (s) => (SPEED = s), state: () => ({ run, world, stars: save.stars }), setCode: (c) => { ta.value = c; refreshEditor(); }, setMode };
+
+/* boot */
+syncSound();
+$('#speed').value = 1;
+loadLevel(Math.min(save.level || 0, LEVELS.length - 1));
+setMode(save.mode === 'blk' ? 'blk' : 'py');
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
